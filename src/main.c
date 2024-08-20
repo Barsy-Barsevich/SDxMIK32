@@ -62,21 +62,45 @@ int main()
     //     xprintf("\n");
     // }
 
-
-
-    for (uint8_t k=0; k<10; k++)
+        xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
+    for (uint16_t i=0; i<512; i+=16)
     {
-        xprintf("Reading sector %u: Status: %u\n", k, SD_SingleRead(&sd, k, sd_buffer));
-        for (uint16_t i=0; i<512; i+=16)
+        xprintf("%04X: ", i);
+        for (uint8_t j=0; j<16; j++)
         {
-            xprintf("%04X: ", i);
-            for (uint8_t j=0; j<16; j++)
-            {
-                xprintf(" %02X", sd_buffer[i+j]);
-            }
-            xprintf("\n");
+            xprintf(" %02X", sd_buffer[i+j]);
         }
+        xprintf("\n");
     }
+
+    xprintf("Erasing sector 9: Status: %u\n", SD_SingleErase(&sd, 9));
+
+    xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
+    for (uint16_t i=0; i<512; i+=16)
+    {
+        xprintf("%04X: ", i);
+        for (uint8_t j=0; j<16; j++)
+        {
+            xprintf(" %02X", sd_buffer[i+j]);
+        }
+        xprintf("\n");
+    }
+
+
+
+    // for (uint8_t k=0; k<10; k++)
+    // {
+    //     xprintf("Reading sector %u: Status: %u\n", k, SD_SingleRead(&sd, k, sd_buffer));
+    //     for (uint16_t i=0; i<512; i+=16)
+    //     {
+    //         xprintf("%04X: ", i);
+    //         for (uint8_t j=0; j<16; j++)
+    //         {
+    //             xprintf(" %02X", sd_buffer[i+j]);
+    //         }
+    //         xprintf("\n");
+    //     }
+    // }
 }
 
 void SystemClock_Config(void)
@@ -95,26 +119,6 @@ void SystemClock_Config(void)
     PCC_OscInit.RTCClockSelection = PCC_RTC_CLOCK_SOURCE_AUTO;
     PCC_OscInit.RTCClockCPUSelection = PCC_CPU_RTC_CLOCK_SOURCE_OSC32K;
     HAL_PCC_Config(&PCC_OscInit);
-}
-
-void DelayUs(uint32_t time_us)
-{
-    time_us >>= 3;
-    register uint32_t del = 14 * (HAL_PCC_GetSysClockFreq() / (PM->DIV_AHB+1) / 1000UL) / 16000;
-    //register uint32_t del = 10 * (HAL_PCC_GetSysClockFreq() / (PM->DIV_AHB+1) / 1000UL) / 32000;
-    asm volatile(
-        "beq    %[count], x0, end_metka_%="         "\n\t"
-        "cycle_main_%=:"
-        "mv     t0, %[del]"                         "\n\t"
-        "cycle_internal_%=:"
-        "addi   t0, t0, -1"                         "\n\t"
-        "bne    t0, x0, cycle_internal_%="          "\n\t"
-        "addi   %[count], %[count], -1"             "\n\t"
-        "bne    %[count], x0, cycle_main_%="        "\n\t"
-        "end_metka_%=:"
-        ::
-        [count] "r" (time_us), [del] "r" (del) : "t0"
-    );
 }
 
 

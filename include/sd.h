@@ -152,7 +152,7 @@ void SD_SendCommand(SD_Commands_enum command, uint32_t operand, uint8_t crc, uin
 SD_Status_enum SD_Init(SD_Descriptor_t* param);
 SD_Status_enum SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
 SD_Status_enum SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
-
+SD_Status_enum SD_SingleErase(SD_Descriptor_t* local, uint32_t addr);
 
 
 

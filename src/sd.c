@@ -287,3 +287,15 @@ SD_Status_enum SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* bu
     HAL_SPI_Exchange(&hspi0, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
     return SD_OK;
 }
+
+
+SD_Status_enum SD_SingleErase(SD_Descriptor_t* local, uint32_t addr)
+{
+    uint8_t resp, dummy = 0xFF;
+    HAL_SPI_CS_Enable(&hspi0, SPI_CS_0);
+    SD_SendCommand(CMD32, addr, 0xFF, &resp);
+    if (resp != 0) return resp;
+    SD_SendCommand(CMD33, addr, 0xFF, &resp);
+    if (resp != 0) return resp;
+    SD_SendCommand(CMD38, 0, 0xFF, &resp);
+}
