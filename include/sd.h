@@ -131,36 +131,17 @@ typedef enum
 
 typedef struct sd
 {
+    SPI_HandleTypeDef* spi;
     SD_CardType_enum type;
     SD_Voltage_enum voltage;
-
 } SD_Descriptor_t;
 
 
-
-
-
-SPI_HandleTypeDef hspi0;
-
-
-
-
-static void SPI0_Init(void);
-
-
-void SD_SendCommand(SD_Commands_enum command, uint32_t operand, uint8_t crc, uint8_t* resp);
+void SD_SendCommand(SD_Descriptor_t* local, SD_Commands_enum command, uint32_t operand, uint8_t crc, uint8_t* resp);
 SD_Status_enum SD_Init(SD_Descriptor_t* param);
 SD_Status_enum SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
 SD_Status_enum SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
 SD_Status_enum SD_SingleErase(SD_Descriptor_t* local, uint32_t addr);
-
-
-
-
-
-
-
-
 
 
 #endif

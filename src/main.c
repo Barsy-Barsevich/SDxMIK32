@@ -12,14 +12,17 @@
  */
 
 USART_HandleTypeDef husart0;
+
+SPI_HandleTypeDef hspi0;
 SD_Descriptor_t sd;
+
 static uint8_t sd_buffer[512];
 
 
 void SystemClock_Config(void);
 static void USART_Init();
 static void GPIO_Init();
-void DelayUs(uint32_t us);
+static void SPI0_Init();
 
 int main()
 {
@@ -28,9 +31,10 @@ int main()
     USART_Init();
 
     GPIO_Init();
-    HAL_GPIO_WritePin(GPIO_2, GPIO_PIN_7, 0);
 
+    SPI0_Init();
     sd.voltage = SD_Voltage_from_3_2_to_3_3;
+    sd.spi = &hspi0;
     xprintf("\nResult if init: Status: %u; Type: %u\n\n", SD_Init(&sd), sd.type);
 
     HAL_DelayMs(1000);
@@ -177,4 +181,25 @@ static void GPIO_Init()
     GPIO_InitStruct.Mode = HAL_GPIO_MODE_GPIO_OUTPUT;
     GPIO_InitStruct.Pull = HAL_GPIO_PULL_NONE;
     HAL_GPIO_Init(GPIO_2, &GPIO_InitStruct);
+}
+
+
+static void SPI0_Init()
+{
+    hspi0.Instance = SPI_0;
+    /* Режим SPI */
+    hspi0.Init.SPI_Mode = HAL_SPI_MODE_MASTER;
+    /* Настройки */
+    hspi0.Init.CLKPhase = SPI_PHASE_ON;
+    hspi0.Init.CLKPolarity = SPI_POLARITY_HIGH;
+    hspi0.Init.ThresholdTX = 4;
+    /* Настройки для ведущего */
+    hspi0.Init.BaudRateDiv = SPI_BAUDRATE_DIV256;
+    hspi0.Init.Decoder = SPI_DECODER_NONE;
+    hspi0.Init.ManualCS = SPI_MANUALCS_ON;
+    hspi0.Init.ChipSelect = SPI_CS_0;
+    if (HAL_SPI_Init(&hspi0) != HAL_OK)
+    {
+        xprintf("SPI_Init_Error\n");
+    }
 }
