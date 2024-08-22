@@ -131,7 +131,7 @@ typedef enum
 
 typedef struct sd
 {
-    SPI_HandleTypeDef* spi;
+    void* spi;
     SD_CardType_enum type;
     SD_Voltage_enum voltage;
 } SD_Descriptor_t;

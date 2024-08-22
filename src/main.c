@@ -1,5 +1,6 @@
 #include "mik32_hal_spi.h"
 #include "sd.h"
+#include "fat.h"
 #include "mik32_hal_usart.h"
 #include "xprintf.h"
 
@@ -15,6 +16,7 @@ USART_HandleTypeDef husart0;
 
 SPI_HandleTypeDef hspi0;
 SD_Descriptor_t sd;
+FAT_Descriptor_t fat32;
 
 static uint8_t sd_buffer[512];
 
@@ -35,7 +37,8 @@ int main()
     SPI0_Init();
     sd.voltage = SD_Voltage_from_3_2_to_3_3;
     sd.spi = &hspi0;
-    xprintf("\nResult if init: Status: %u; Type: %u\n\n", SD_Init(&sd), sd.type);
+    xprintf("\nResult if init: Status: %u; ", SD_Init(&sd));
+    xprintf("Type: %s\n\n", sd.type == 0 ? "SDv1" : sd.type == 1 ? "SDv1" : sd.type == 2 ? "SDHC" : sd.type == 3 ? "MMC" : "NotSD");
 
     HAL_DelayMs(1000);
 
@@ -66,7 +69,35 @@ int main()
     //     xprintf("\n");
     // }
 
-        xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
+    //     xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
+    // for (uint16_t i=0; i<512; i+=16)
+    // {
+    //     xprintf("%04X: ", i);
+    //     for (uint8_t j=0; j<16; j++)
+    //     {
+    //         xprintf(" %02X", sd_buffer[i+j]);
+    //     }
+    //     xprintf("\n");
+    // }
+
+    // xprintf("Erasing sector 9: Status: %u\n", SD_SingleErase(&sd, 9));
+
+    // xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
+    // for (uint16_t i=0; i<512; i+=16)
+    // {
+    //     xprintf("%04X: ", i);
+    //     for (uint8_t j=0; j<16; j++)
+    //     {
+    //         xprintf(" %02X", sd_buffer[i+j]);
+    //     }
+    //     xprintf("\n");
+    // }
+
+    fat32.card = &sd;
+    xprintf("FAT init. Status: %u\n", FAT_Init(&fat32));
+    xprintf("First FAT startaddr: %u\nFirst data cluster: %u\n", fat32.fat_begin, fat32.cluster_begin);
+
+    xprintf("Reading sector %u: Status: %u\n", 0x11D2, SD_SingleRead(&sd, 0x11D2, sd_buffer));
     for (uint16_t i=0; i<512; i+=16)
     {
         xprintf("%04X: ", i);
@@ -77,22 +108,8 @@ int main()
         xprintf("\n");
     }
 
-    xprintf("Erasing sector 9: Status: %u\n", SD_SingleErase(&sd, 9));
 
-    xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
-    for (uint16_t i=0; i<512; i+=16)
-    {
-        xprintf("%04X: ", i);
-        for (uint8_t j=0; j<16; j++)
-        {
-            xprintf(" %02X", sd_buffer[i+j]);
-        }
-        xprintf("\n");
-    }
-
-
-
-    // for (uint8_t k=0; k<10; k++)
+    // for (uint8_t k=0x0800; k<0x0801; k++)
     // {
     //     xprintf("Reading sector %u: Status: %u\n", k, SD_SingleRead(&sd, k, sd_buffer));
     //     for (uint16_t i=0; i<512; i+=16)

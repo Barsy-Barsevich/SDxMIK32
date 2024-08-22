@@ -273,4 +273,5 @@ SD_Status_enum SD_SingleErase(SD_Descriptor_t* local, uint32_t addr)
     SD_SendCommand(local, CMD33, addr, 0xFF, &resp);
     if (resp != 0) return resp;
     SD_SendCommand(local, CMD38, 0, 0xFF, &resp);
+    return SD_OK;
 }
