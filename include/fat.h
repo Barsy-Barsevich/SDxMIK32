@@ -1,6 +1,9 @@
 
 
 #include "sd.h"
+#include "string.h"
+#include "stdbool.h"
+#include "xprintf.h"
 
 
 /* Master boot record */
@@ -58,7 +61,9 @@ typedef enum
     FAT_OK = 0,
     FAT_DiskError = 1,
     /* Disk not formatted for FAT32 */
-    FAT_DiskNForm = 2
+    FAT_DiskNForm = 2,
+    FAT_Error = 3,
+    FAT_NotFound = 4,
 } FAT_Status_enum;
 
 
@@ -66,11 +71,16 @@ typedef struct
 {
     SD_Descriptor_t* card;
     uint8_t buffer[512];
-    uint32_t fat_begin;
+    uint32_t lba_begin;
+    uint32_t fat1_begin;
+    uint32_t fat2_begin;
     uint32_t cluster_begin;
-    uint8_t sectors_per_cluster;
+    uint8_t sec_per_clust;
     uint8_t num_of_fats;
     uint32_t fat_length;
+
+    uint32_t fs_pointer;
+    uint32_t fs_len;
 } FAT_Descriptor_t;
 
 
@@ -78,3 +88,5 @@ typedef struct
 
 
 FAT_Status_enum FAT_Init(FAT_Descriptor_t* local);
+FAT_Status_enum FAT_CreateDir(FAT_Descriptor_t* local, char* name);
+FAT_Status_enum FAT_FindByName(FAT_Descriptor_t* local, char* name);
