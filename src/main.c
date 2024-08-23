@@ -43,61 +43,85 @@ int main()
     HAL_DelayMs(1000);
 
     HAL_GPIO_WritePin(GPIO_2, GPIO_PIN_7, 1);
-    // xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
-    // for (uint16_t i=0; i<512; i+=16)
-    // {
-    //     xprintf("%04X: ", i);
-    //     for (uint8_t j=0; j<16; j++)
-    //     {
-    //         xprintf(" %02X", sd_buffer[i+j]);
-    //     }
-    //     xprintf("\n");
-    // }
-
-    // for (uint16_t i=0; i<512; i++) sd_buffer[i] = i & 0xFF;
-
-    // xprintf("Writing sector 9: Status: %u\n", SD_SingleWrite(&sd, 9, sd_buffer));
-
-    // xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
-    // for (uint16_t i=0; i<512; i+=16)
-    // {
-    //     xprintf("%04X: ", i);
-    //     for (uint8_t j=0; j<16; j++)
-    //     {
-    //         xprintf(" %02X", sd_buffer[i+j]);
-    //     }
-    //     xprintf("\n");
-    // }
-
-    //     xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
-    // for (uint16_t i=0; i<512; i+=16)
-    // {
-    //     xprintf("%04X: ", i);
-    //     for (uint8_t j=0; j<16; j++)
-    //     {
-    //         xprintf(" %02X", sd_buffer[i+j]);
-    //     }
-    //     xprintf("\n");
-    // }
-
-    // xprintf("Erasing sector 9: Status: %u\n", SD_SingleErase(&sd, 9));
-
-    // xprintf("Reading sector 9: Status: %u\n", SD_SingleRead(&sd, 9, sd_buffer));
-    // for (uint16_t i=0; i<512; i+=16)
-    // {
-    //     xprintf("%04X: ", i);
-    //     for (uint8_t j=0; j<16; j++)
-    //     {
-    //         xprintf(" %02X", sd_buffer[i+j]);
-    //     }
-    //     xprintf("\n");
-    // }
 
     fat32.card = &sd;
     xprintf("FAT init. Status: %u\n", FAT_Init(&fat32));
     xprintf("First FAT startaddr: %u\nFirst data cluster: %u\n", fat32.fat_begin, fat32.cluster_begin);
 
-    xprintf("Reading sector %u: Status: %u\n", 0x11D2, SD_SingleRead(&sd, 0x11D2, sd_buffer));
+    // xprintf("Reading sector %u: Status: %u\n", 0, SD_SingleRead(&sd, fat32.cluster_begin, sd_buffer));
+    // xprintf("Erasing sector %u: Status: %u\n", 0, SD_SingleErase(&sd, fat32.cluster_begin));
+    // xprintf("Reading sector %u: Status: %u\n", 0, SD_SingleRead(&sd, fat32.cluster_begin, sd_buffer));
+    // sd_buffer[0] = 0x41;
+    // sd_buffer[1] = 0x6E;
+    // sd_buffer[2] = 0x6F;
+    // sd_buffer[3] = 0x6D;
+    // sd_buffer[4] = 0x61;
+    // sd_buffer[5] = 0x6C;
+    // sd_buffer[6] = 0x6A;
+    // sd_buffer[7] = 0x61;
+    // sd_buffer[8] = 0x20;
+    // sd_buffer[9] = 0x20;
+    // sd_buffer[10] = 0x20;
+    // sd_buffer[11] = 0x08;
+    // sd_buffer[32+0] = 'M';
+    // sd_buffer[32+1] = 'y';
+    // sd_buffer[32+2] = '_';
+    // sd_buffer[32+3] = 'f';
+    // sd_buffer[32+4] = 'i';
+    // sd_buffer[32+5] = 'l';
+    // sd_buffer[32+6] = 'e';
+    // sd_buffer[32+7] = ' ';
+    // sd_buffer[32+8] = 't';
+    // sd_buffer[32+9] = 'x';
+    // sd_buffer[32+10] = 't';
+    // sd_buffer[32+11] = 0x00;
+    // sd_buffer[32+20] = 0x00;
+    // sd_buffer[32+21] = 0x00;
+    // sd_buffer[32+26] = 0x01;
+    // sd_buffer[32+27] = 0x00;
+    // sd_buffer[32+28] = 0x05;
+    // sd_buffer[32+29] = 0x00;
+    // sd_buffer[32+30] = 0x00;
+    // sd_buffer[32+31] = 0x00;
+    // xprintf("Writing sector %u: Status: %u\n", 0, SD_SingleWrite(&sd, fat32.cluster_begin, sd_buffer));
+    // xprintf("Reading sector %u: Status: %u\n", 0, SD_SingleRead(&sd, fat32.cluster_begin, sd_buffer));
+    // for (uint16_t i=0; i<512; i+=16)
+    // {
+    //     xprintf("%04X: ", i);
+    //     for (uint8_t j=0; j<16; j++)
+    //     {
+    //         xprintf(" %02X", sd_buffer[i+j]);
+    //     }
+    //     xprintf("\n");
+    // }
+
+
+    // xprintf("Reading sector %u: Status: %u\n", 1, SD_SingleRead(&sd, fat32.cluster_begin+1, sd_buffer));
+    // xprintf("Erasing sector %u: Status: %u\n", 1, SD_SingleErase(&sd, fat32.cluster_begin+1));
+    // xprintf("Reading sector %u: Status: %u\n", 1, SD_SingleRead(&sd, fat32.cluster_begin+1, sd_buffer));
+    // sd_buffer[0] = 0x31;
+    // sd_buffer[1] = 0x32;
+    // sd_buffer[2] = 0x33;
+    // xprintf("Writing sector %u: Status: %u\n", 1, SD_SingleWrite(&sd, fat32.cluster_begin+1, sd_buffer));
+    // xprintf("Reading sector %u: Status: %u\n", 1, SD_SingleRead(&sd, fat32.cluster_begin+1, sd_buffer));
+    // for (uint16_t i=0; i<512; i+=16)
+    // {
+    //     xprintf("%04X: ", i);
+    //     for (uint8_t j=0; j<16; j++)
+    //     {
+    //         xprintf(" %02X", sd_buffer[i+j]);
+    //     }
+    //     xprintf("\n");
+    // }
+
+    xprintf("Reading sector %u: Status: %u\n", 1, SD_SingleRead(&sd, fat32.cluster_begin+1, sd_buffer));
+    xprintf("Writing sector %u: Status: %u\n", 2, SD_SingleWrite(&sd, fat32.cluster_begin+2, sd_buffer));
+
+
+
+    for (uint8_t i=0x0; i<30; i++)
+    {
+    xprintf("Reading sector %u: Status: %u\n", i, SD_SingleRead(&sd, fat32.cluster_begin+i, sd_buffer));
     for (uint16_t i=0; i<512; i+=16)
     {
         xprintf("%04X: ", i);
@@ -107,21 +131,7 @@ int main()
         }
         xprintf("\n");
     }
-
-
-    // for (uint8_t k=0x0800; k<0x0801; k++)
-    // {
-    //     xprintf("Reading sector %u: Status: %u\n", k, SD_SingleRead(&sd, k, sd_buffer));
-    //     for (uint16_t i=0; i<512; i+=16)
-    //     {
-    //         xprintf("%04X: ", i);
-    //         for (uint8_t j=0; j<16; j++)
-    //         {
-    //             xprintf(" %02X", sd_buffer[i+j]);
-    //         }
-    //         xprintf("\n");
-    //     }
-    // }
+    }
 }
 
 void SystemClock_Config(void)
@@ -182,7 +192,7 @@ static void USART_Init()
     husart0.Modem.dsr = Disable; //in
     husart0.Modem.ri = Disable;  //in
     husart0.Modem.ddis = Disable;//out
-    husart0.baudrate = 115200;
+    husart0.baudrate = 1000000;
     HAL_USART_Init(&husart0);
 }
 

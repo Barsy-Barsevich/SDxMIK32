@@ -251,7 +251,7 @@ SD_Status_enum SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* bu
     SD_SendCommand(local, CMD24, addr, 0xff, &resp);
     if (resp != 0) return resp;
     HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
-    dummy = 0xFC;
+    dummy = 0xFE;
     HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
     for (uint16_t i=0; i<512; i++)
     {
