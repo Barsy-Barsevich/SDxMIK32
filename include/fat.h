@@ -64,7 +64,7 @@ typedef enum
     FAT_DiskNForm = 2,
     FAT_Error = 3,
     FAT_NotFound = 4,
-} FAT_Status_enum;
+} FAT_Status_t;
 
 
 // typedef struct 
@@ -107,9 +107,10 @@ typedef struct
     uint32_t fat2_begin;
     /* The data region startaddr */
     uint32_t data_region_begin;
-    /*  */
-    struct __param
-    {
+    /**
+     *  File system parameters
+     */
+    struct __param {
         /* Number of sectors per cluster */
         uint8_t sec_per_clust;
         /* Number of FATs */
@@ -117,23 +118,24 @@ typedef struct
         /* The length of FAT */
         uint32_t fat_length;
     } param;
-    struct __temp
-    {
+    /**
+     * Temp object parameters
+     */
+    struct __temp {
         uint32_t cluster;
         uint32_t len;
         uint8_t status;
     } temp;
-    // uint32_t temp_cluster;
-    // uint32_t temp_length;
-    // uint8_t temp_status;
 } FAT_Descriptor_t;
 
 
 
 
-FAT_Status_enum FAT_Init(FAT_Descriptor_t* local);
+FAT_Status_t FAT_Init(FAT_Descriptor_t* local);
+
 void FAT_SetPointerToRoot(FAT_Descriptor_t* local);
-FAT_Status_enum FAT_FindByName(FAT_Descriptor_t* local, char* name);
+FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs);
+FAT_Status_t FAT_FindByName(FAT_Descriptor_t* local, char* name);
 
 
-//FAT_Status_enum FAT_CreateDir(FAT_Descriptor_t* local, char* name);
+//FAT_Status_t FAT_CreateDir(FAT_Descriptor_t* local, char* name);

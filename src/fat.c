@@ -1,7 +1,7 @@
 #include "fat.h"
 
 
-FAT_Status_enum FAT_Init(FAT_Descriptor_t* fs)
+FAT_Status_t FAT_Init(FAT_Descriptor_t* fs)
 {
     /* Read Master boot record */
     if (SD_SingleRead(fs->card, 0, fs->buffer) != 0) return FAT_DiskError;
@@ -44,54 +44,52 @@ FAT_Status_enum FAT_Init(FAT_Descriptor_t* fs)
 }
 
 
-
-// FAT_Status_enum FAT_CreateDir(FAT_Descriptor_t* fat, char* name)
-// {
-//     /* Найти номер конечного кластера root-директории */
-//     uint32_t* ptr = fs->buffer;
-//     uint32_t idx = 0;
-//     ptr[0] = 0;
-//     do {
-//         idx = ptr[idx%512];
-//         if (SD_SingleRead(fs->card, fs->fat1_begin+(idx/512), fs->buffer) != 0) return FAT_DiskError;
-//     } while ((ptr[idx%512] & 0x0FFFFFFF) < 0x0FFFFFF7);
-//     //(idx*sec_per_clust+fat1_begin) - number of the last rootdir's cluster
-
-//     uint8_t i=0;
-//     while (i<fs->param.sec_per_clust)
-//     {
-//         if (SD_SingleRead(fs->card, idx+fs->fat1_begin+i, fs->buffer) != 0) return FAT_DiskError;
-//         uint16_t j=0;
-//         while (j<512)
-//         {
-//             if (fs->buffer[j] == 0x00) break;
-//             j += 32;
-//         }
-//         i += 1;
-//     }
-
-
-//     if (SD_SingleRead(fs->card, fs->fat1_begin, fs->buffer) != 0) return FAT_DiskError;
-//     //if ((ptr[0] & 0x0FFFFFFF) < 0x0FFFFFF7)
-// }
-
-
+/**
+ * @brief Set file system temp-pointer to root directory
+ * @param fs file system's descriptor-structure
+ * @return none
+ */
 void FAT_SetPointerToRoot(FAT_Descriptor_t* fs)
 {
     fs->temp.cluster = fs->data_region_begin;
 }
 
 
-
-FAT_Status_enum FAT_FindByName(FAT_Descriptor_t* fs, char* name)
+/**
+ * @brief The function finds the cluster next to [fs.temp.cluster] cluster
+ * @param fs file system's descriptor-structure
+ * @return
+ * - FAT_OK the next cluster was found succesfully, its pointer was saved to [fs.temp.cluster]
+ * - FAT_DiskError - the driver error occured, [fs.temp.cluster] not changed
+ * - FAT_NotFound - there are not any next clusters, [fs.temp.cluster] not changed
+ */
+FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs)
 {
-    char name_str[12];
+    /* Read FAT */
+    uint32_t bias = (fs->temp.cluster / (512/4));
+    if (SD_SingleRead(fs->card, fs->fat1_begin + bias, fs->buffer) != 0) return FAT_DiskError;
+    /* Read field */
+    uint32_t* ptr = (uint32_t*)fs->buffer;
+    uint32_t link = ptr[fs->temp.cluster % (512/4)];
+    if ((link & 0x0FFFFFFF) >= 0x0FFFFFF7) return FAT_NotFound;
+    else
+    {
+        fs->temp.cluster = link;
+        return FAT_OK;
+    }
+}
 
+
+
+FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
+{
+    char name_str[11];
+    /* Preparing the name string */
     uint8_t pos = 0;
     bool ready = false;
     while ((name[pos] != '\0') && !ready)
     {
-        /* The point has been found */
+        /* The point symbol has been found */
         if (name[pos] == '.')
         {
             if (pos > 8) return FAT_Error;
@@ -109,7 +107,7 @@ FAT_Status_enum FAT_FindByName(FAT_Descriptor_t* fs, char* name)
         }
         pos += 1;
     }
-    /* The point has not been found */
+    /* The point symbol has not been found */
     if (!ready)
     {
         uint8_t i=0;
@@ -121,21 +119,32 @@ FAT_Status_enum FAT_FindByName(FAT_Descriptor_t* fs, char* name)
         }
         for ((void)i; i<11; i++) name_str[i] = 0x20;
     }
-    /* Read sector data */
-    if (SD_SingleRead(fs->card, fs->data_region_begin+fs->temp.cluster, fs->buffer) != 0) return FAT_DiskError;
-    /* Try to find the name in sector */
-    uint16_t i=0;
-    while ((i < 512) && memcmp(name_str, fs->buffer+i, 11)) i += 32;
-    if (i == 512) return FAT_NotFound;
-    /* Save parameters */
-    fs->temp.cluster = (uint32_t)fs->buffer[i+FAT_DIR_FstClusHI+0]<<16 |
-        (uint32_t)fs->buffer[i+FAT_DIR_FstClusHI+1]<<24 |
-        (uint32_t)fs->buffer[i+FAT_DIR_FstClusLO+0] |
-        (uint32_t)fs->buffer[i+FAT_DIR_FstClusLO+1]<<8;
-    fs->temp.len = (uint32_t)fs->buffer[i+FAT_DIR_FileSize+0] |
-        (uint32_t)fs->buffer[i+FAT_DIR_FileSize+1]<<8 |
-        (uint32_t)fs->buffer[i+FAT_DIR_FileSize+2]<<16 |
-        (uint32_t)fs->buffer[i+FAT_DIR_FileSize+3]<<24;
-    fs->temp.status = fs->buffer[i+FAT_DIR_Attr];
-    return FAT_OK;
+    /* Finding process */
+    FAT_Status_t res = FAT_OK;
+    while (res == FAT_OK)
+    {
+        for (uint8_t sector=0; sector < fs->param.sec_per_clust; sector++)
+        {
+            /* Read sector data */
+            if (SD_SingleRead(fs->card, fs->data_region_begin+fs->temp.cluster+sector, fs->buffer) != 0) return FAT_DiskError;
+            /* Try to find the name in sector */
+            uint16_t entire = 0;
+            while ((entire < 512) && memcmp(name_str, fs->buffer+entire, 11)) entire += 32;
+            if (entire == 512) continue;
+            /* The correct name has been found */
+            /* Save parameters */
+            fs->temp.cluster = (uint32_t)fs->buffer[entire+FAT_DIR_FstClusHI+0]<<16 |
+                (uint32_t)fs->buffer[entire+FAT_DIR_FstClusHI+1]<<24 |
+                (uint32_t)fs->buffer[entire+FAT_DIR_FstClusLO+0] |
+                (uint32_t)fs->buffer[entire+FAT_DIR_FstClusLO+1]<<8;
+            fs->temp.len = (uint32_t)fs->buffer[entire+FAT_DIR_FileSize+0] |
+                (uint32_t)fs->buffer[entire+FAT_DIR_FileSize+1]<<8 |
+                (uint32_t)fs->buffer[entire+FAT_DIR_FileSize+2]<<16 |
+                (uint32_t)fs->buffer[entire+FAT_DIR_FileSize+3]<<24;
+            fs->temp.status = fs->buffer[entire+FAT_DIR_Attr];
+            return FAT_OK;
+        }
+        res = FAT_FindNextCluster(fs);
+    }
+    return res;
 }

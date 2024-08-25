@@ -126,7 +126,7 @@ typedef enum
     SD_TimeoutError = 130,
     SD_CommunicationError = 131,
     SD_OperationError = 132,
-} SD_Status_enum;
+} SD_Status_t;
 
 
 typedef struct sd
@@ -138,10 +138,10 @@ typedef struct sd
 
 
 void SD_SendCommand(SD_Descriptor_t* local, SD_Commands_enum command, uint32_t operand, uint8_t crc, uint8_t* resp);
-SD_Status_enum SD_Init(SD_Descriptor_t* param);
-SD_Status_enum SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
-SD_Status_enum SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
-SD_Status_enum SD_SingleErase(SD_Descriptor_t* local, uint32_t addr);
+SD_Status_t SD_Init(SD_Descriptor_t* param);
+SD_Status_t SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
+SD_Status_t SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
+SD_Status_t SD_SingleErase(SD_Descriptor_t* local, uint32_t addr);
 
 
 #endif

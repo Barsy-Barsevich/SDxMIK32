@@ -52,7 +52,7 @@ void SD_SendCommand(SD_Descriptor_t* local, SD_Commands_enum command, uint32_t o
 
 
 
-SD_Status_enum SD_Init(SD_Descriptor_t* local)
+SD_Status_t SD_Init(SD_Descriptor_t* local)
 {
     HAL_SPI_CS_Disable(local->spi);
     HAL_DelayMs(100);
@@ -217,7 +217,7 @@ SD_Status_enum SD_Init(SD_Descriptor_t* local)
 }
 
 
-SD_Status_enum SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
+SD_Status_t SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
 {
     uint8_t resp, dummy = 0xFF;
     HAL_SPI_CS_Enable(local->spi, SPI_CS_0);
@@ -244,7 +244,7 @@ SD_Status_enum SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf
 }
 
 
-SD_Status_enum SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
+SD_Status_t SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
 {
     uint8_t resp, dummy = 0xFF;
     HAL_SPI_CS_Enable(local->spi, SPI_CS_0);
@@ -264,7 +264,7 @@ SD_Status_enum SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* bu
 }
 
 
-SD_Status_enum SD_SingleErase(SD_Descriptor_t* local, uint32_t addr)
+SD_Status_t SD_SingleErase(SD_Descriptor_t* local, uint32_t addr)
 {
     uint8_t resp;
     HAL_SPI_CS_Enable(local->spi, SPI_CS_0);
