@@ -67,26 +67,73 @@ typedef enum
 } FAT_Status_enum;
 
 
+// typedef struct 
+// {
+//     /* SD card descriptor */
+//     SD_Descriptor_t* card;
+//     /* One-sector buffer */
+//     uint8_t buffer[512];
+//     uint32_t lba_begin;
+//     /* The 1st FAT startaddr */
+//     uint32_t fat1_begin;
+//     /* The 2nd FAT startaddr */
+//     uint32_t fat2_begin;
+//     /* The data region startaddr */
+//     uint32_t cluster_begin;
+//     /*  */
+//     uint8_t sec_per_clust;
+//     uint8_t num_of_fats;
+//     uint32_t fat_length;
+
+//     uint32_t fs_pointer;
+//     uint32_t fs_len;
+// } FAT_Descriptor_t;
+
+
 typedef struct 
 {
+    /* SD card descriptor */
     SD_Descriptor_t* card;
+    /* One-sector buffer */
     uint8_t buffer[512];
-    uint32_t lba_begin;
+    /**
+     * The file system startaddr
+     * It is a pointer to 0th cluster of file system containing information about
+     */
+    uint32_t fs_begin;
+    /* The 1st FAT startaddr */
     uint32_t fat1_begin;
+    /* The 2nd FAT startaddr */
     uint32_t fat2_begin;
-    uint32_t cluster_begin;
-    uint8_t sec_per_clust;
-    uint8_t num_of_fats;
-    uint32_t fat_length;
-
-    uint32_t fs_pointer;
-    uint32_t fs_len;
+    /* The data region startaddr */
+    uint32_t data_region_begin;
+    /*  */
+    struct __param
+    {
+        /* Number of sectors per cluster */
+        uint8_t sec_per_clust;
+        /* Number of FATs */
+        uint8_t num_of_fats;
+        /* The length of FAT */
+        uint32_t fat_length;
+    } param;
+    struct __temp
+    {
+        uint32_t cluster;
+        uint32_t len;
+        uint8_t status;
+    } temp;
+    // uint32_t temp_cluster;
+    // uint32_t temp_length;
+    // uint8_t temp_status;
 } FAT_Descriptor_t;
 
 
 
 
-
 FAT_Status_enum FAT_Init(FAT_Descriptor_t* local);
-FAT_Status_enum FAT_CreateDir(FAT_Descriptor_t* local, char* name);
+void FAT_SetPointerToRoot(FAT_Descriptor_t* local);
 FAT_Status_enum FAT_FindByName(FAT_Descriptor_t* local, char* name);
+
+
+//FAT_Status_enum FAT_CreateDir(FAT_Descriptor_t* local, char* name);

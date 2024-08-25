@@ -45,7 +45,7 @@ int main()
 
     fat32.card = &sd;
     xprintf("FAT init. Status: %u\n", FAT_Init(&fat32));
-    xprintf("First FAT startaddr: %u\nFirst data cluster: %u\n", fat32.fat1_begin, fat32.cluster_begin);
+    xprintf("First FAT startaddr: %u\nFirst data cluster: %u\n", fat32.fat1_begin, fat32.data_region_begin);
 
     // xprintf("Reading sector %u: Status: %u\n", 0, SD_SingleRead(&sd, fat32.cluster_begin, fat32.buffer));
     // xprintf("Erasing sector %u: Status: %u\n", 0, SD_SingleErase(&sd, fat32.cluster_begin));
@@ -125,10 +125,11 @@ int main()
         xprintf("\n");
     }
 
-    xprintf("Sectors per cluster: %u\n", fat32.sec_per_clust);
+    xprintf("Sectors per cluster: %u\n", fat32.param.sec_per_clust);
     for (uint8_t y=0; y<50; y++)
     {
-        xprintf("Reading sector %u: Status: %u\n", fat32.cluster_begin+y*fat32.sec_per_clust, SD_SingleRead(&sd, fat32.cluster_begin+y*fat32.sec_per_clust, fat32.buffer));
+        xprintf("Reading sector %u: Status: %u\n", fat32.data_region_begin+y*fat32.param.sec_per_clust,
+            SD_SingleRead(&sd, fat32.data_region_begin+y*fat32.param.sec_per_clust, fat32.buffer));
         for (uint16_t i=0; i<512; i+=16)
         {
             xprintf("%04X: ", i);
@@ -140,12 +141,12 @@ int main()
         }
     }
 
-    fat32.fs_pointer = 0;
-    fat32.fs_len = 0;
-    xprintf("\nPointer: %08X; Len: %08X\n", fat32.fs_pointer, fat32.fs_len);
+    fat32.temp.cluster = 0;
+    fat32.temp.len = 0;
+    xprintf("\nPointer: %08X; Len: %08X\n", fat32.temp.cluster, fat32.temp.len);
 
     xprintf("Find by name: Status: %u\n", FAT_FindByName(&fat32, "ABC.TXT"));
-    xprintf("Pointer: %08X; Len: %08X\n", fat32.fs_pointer, fat32.fs_len);
+    xprintf("Pointer: %08X; Len: %08X\n", fat32.temp.cluster, fat32.temp.len);
 
 
 
