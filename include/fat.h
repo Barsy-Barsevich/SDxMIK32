@@ -67,28 +67,6 @@ typedef enum
 } FAT_Status_t;
 
 
-// typedef struct 
-// {
-//     /* SD card descriptor */
-//     SD_Descriptor_t* card;
-//     /* One-sector buffer */
-//     uint8_t buffer[512];
-//     uint32_t lba_begin;
-//     /* The 1st FAT startaddr */
-//     uint32_t fat1_begin;
-//     /* The 2nd FAT startaddr */
-//     uint32_t fat2_begin;
-//     /* The data region startaddr */
-//     uint32_t cluster_begin;
-//     /*  */
-//     uint8_t sec_per_clust;
-//     uint8_t num_of_fats;
-//     uint32_t fat_length;
-
-//     uint32_t fs_pointer;
-//     uint32_t fs_len;
-// } FAT_Descriptor_t;
-
 
 typedef struct 
 {
@@ -130,6 +108,17 @@ typedef struct
 
 
 
+typedef struct 
+{
+    FAT_Descriptor_t* fs;
+    uint32_t cluster;
+    uint32_t len;
+    uint8_t status;
+    uint32_t addr;
+} FAT_File_t;
+
+
+
 
 FAT_Status_t FAT_Init(FAT_Descriptor_t* local);
 
@@ -137,5 +126,6 @@ void FAT_SetPointerToRoot(FAT_Descriptor_t* local);
 FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs);
 FAT_Status_t FAT_FindByName(FAT_Descriptor_t* local, char* name);
 
+uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);
 
 //FAT_Status_t FAT_CreateDir(FAT_Descriptor_t* local, char* name);

@@ -87,7 +87,7 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
     /* Preparing the name string */
     uint8_t pos = 0;
     bool ready = false;
-    while ((name[pos] != '\0') && !ready)
+    while ((name[pos] != '\0') && (name[pos] != '/') && !ready)
     {
         /* The point symbol has been found */
         if (name[pos] == '.')
@@ -96,13 +96,13 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
             memcpy(name_str, name, pos);
             for (uint8_t i=pos; i<8; i++) name_str[i] = 0x20;
             uint8_t i=0;
-            while (name[pos+1+i] != '\0')
+            while ((name[pos+1+i] != '\0') && (name[pos+1+i] != '/'))
             {
                 if (pos+i > 11) return FAT_Error;
                 name_str[8+i] = name[pos+1+i];
                 i += 1;
             }
-            for (uint8_t j=i; j<11-8; j++) name_str[j] = 0x20;
+            for ((void)i; i<11-8; i++) name_str[i] = 0x20;
             ready = true;
         }
         pos += 1;
@@ -111,7 +111,7 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
     if (!ready)
     {
         uint8_t i=0;
-        while (name[i] != '\0')
+        while ((name[i] != '\0') && (name[i] != '/'))
         {
             if (i > 8) return FAT_Error;
             name_str[i] = name[i];
@@ -147,4 +147,26 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
         res = FAT_FindNextCluster(fs);
     }
     return res;
+}
+
+
+uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan)
+{
+    uint32_t counter = 0;
+    while ((quan > 0) && (file->addr < file->len))
+    {
+        /* Read sector data */
+        uint32_t sector = file->fs->data_region_begin + file->cluster + (file->addr / 512);
+        if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != 0) return counter;
+        uint16_t x = file->addr % 512;
+        while ((x < 512) && (quan > 0) && (file->addr < file->len))
+        {
+            buf[counter] = file->fs->buffer[x];
+            counter += 1;
+            x += 1;
+            quan -= 1;
+            file->addr += 1;
+        }
+    }
+    return counter;
 }
