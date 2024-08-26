@@ -80,7 +80,15 @@ FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs)
 }
 
 
-
+/**
+ * @brief Find the number of 1st cluster of file/subdirectory in the directory
+ * @param fs pointer to file system's structure-descriptor
+ * @param name string of name. The last byte should be '\0' or '/'.
+ * If the name contains a point '.' symbol, it cannot contain more than 8 meanung
+ * symbols before point and more than 3 meaning symbols after point. Else, the
+ * name cannot contain more than 8 meaning symbols
+ * @return 
+ */
 FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
 {
     char name_str[11];
@@ -119,6 +127,7 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
         }
         for ((void)i; i<11; i++) name_str[i] = 0x20;
     }
+    //xprintf("\n*%s*\n", name_str);
     /* Finding process */
     FAT_Status_t res = FAT_OK;
     while (res == FAT_OK)
@@ -126,7 +135,9 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
         for (uint8_t sector=0; sector < fs->param.sec_per_clust; sector++)
         {
             /* Read sector data */
-            if (SD_SingleRead(fs->card, fs->data_region_begin+fs->temp.cluster+sector, fs->buffer) != 0) return FAT_DiskError;
+            uint32_t cluster = fs->data_region_begin + fs->temp.cluster * fs->param.sec_per_clust + sector;
+            if (SD_SingleRead(fs->card, cluster, fs->buffer) != 0) return FAT_DiskError;
+            //xprintf("\n*%u*\n", cluster);
             /* Try to find the name in sector */
             uint16_t entire = 0;
             while ((entire < 512) && memcmp(name_str, fs->buffer+entire, 11)) entire += 32;
@@ -137,6 +148,7 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
                 (uint32_t)fs->buffer[entire+FAT_DIR_FstClusHI+1]<<24 |
                 (uint32_t)fs->buffer[entire+FAT_DIR_FstClusLO+0] |
                 (uint32_t)fs->buffer[entire+FAT_DIR_FstClusLO+1]<<8;
+            fs->temp.cluster -= 2;
             fs->temp.len = (uint32_t)fs->buffer[entire+FAT_DIR_FileSize+0] |
                 (uint32_t)fs->buffer[entire+FAT_DIR_FileSize+1]<<8 |
                 (uint32_t)fs->buffer[entire+FAT_DIR_FileSize+2]<<16 |
@@ -150,22 +162,88 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
 }
 
 
+FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path)
+{
+    /* calculate number of '/' symbols */
+    uint8_t descend_number = 0;
+    uint8_t i = 0;
+    while (path[i] != '\0')
+    {
+        if (path[i] == '/') descend_number += 1;
+        i += 1;
+    }
+    /* Descend into directories and files */
+    FAT_Status_t res;
+    res = FAT_FindByName(fs, path);
+    if (res != FAT_OK) return res;
+    char* ptr = path;
+    for (uint8_t k=0; k<descend_number; k++)
+    {
+        while (*ptr != '/') ptr += 1;
+        ptr += 1;
+        //xprintf("\n*%s*\n", ptr);
+        res = FAT_FindByName(fs, ptr);
+        if (res != FAT_OK) return res;
+    }
+    return FAT_OK;
+}
+
+
+FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name)
+{
+    /* Set pointer to root directory */
+    FAT_SetPointerToRoot(file->fs);
+    /* Find 1st cluster of file by path */
+    FAT_Status_t res;
+    res = FAT_FindByPath(file->fs, name);
+    if (res != FAT_OK) return res;
+    /* File start settings */
+    file->addr = 0;
+    file->cluster = file->fs->temp.cluster;
+    file->len = file->fs->temp.len;
+}
+
+
+
+
+/**
+ * @brief Read data from the file
+ * @param file pointer to file's structure-descriptor
+ * @param buf buffer for data
+ * @param quan number of bytes to read
+ * @return number of read bytes
+ */
 uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan)
 {
     uint32_t counter = 0;
-    while ((quan > 0) && (file->addr < file->len))
+    uint32_t start_addr = (file->addr - file->addr % (512 * file->fs->param.sec_per_clust));
+
+    while ((quan > 0) && (file->len > 0))
     {
+        /* Cluster */
+        uint32_t cluster = (file->addr - start_addr) / (512 * file->fs->param.sec_per_clust);
+        file->fs->temp.cluster = file->cluster;
+        while (cluster > 0)
+        {
+            FAT_FindNextCluster(file->fs);
+            cluster -= 1;
+        }
+        file->cluster = file->fs->temp.cluster;
         /* Read sector data */
-        uint32_t sector = file->fs->data_region_begin + file->cluster + (file->addr / 512);
+        uint32_t sector = file->fs->data_region_begin + file->cluster * file->fs->param.sec_per_clust +
+            ((file->addr - start_addr) / 512);
         if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != 0) return counter;
+        //xprintf("*%u*\n", sector);
+        /* Reading sector */
         uint16_t x = file->addr % 512;
-        while ((x < 512) && (quan > 0) && (file->addr < file->len))
+        while ((x < 512) && (quan > 0) && (file->len > 0))
         {
             buf[counter] = file->fs->buffer[x];
             counter += 1;
             x += 1;
             quan -= 1;
             file->addr += 1;
+            file->len -= 1;
         }
     }
     return counter;

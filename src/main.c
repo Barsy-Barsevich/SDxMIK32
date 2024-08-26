@@ -126,7 +126,7 @@ int main()
     // }
 
     // xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
-    // for (uint8_t x=0; x<10; x++)
+    // for (uint8_t x=0; x<30; x++)
     // {
     //     for (uint8_t y=0; y<4; y++)
     //     {
@@ -144,30 +144,47 @@ int main()
     //     }
     // }
 
-    FAT_File_t file;
-    file.cluster = 20;
-    file.addr = 0;
-    file.len = 25;
-    file.fs = &fs;
-    static char buffer[32];
-    uint32_t read_data;
 
-    read_data = FAT_ReadFile(&file, buffer, 16);
-    xprintf("Read: %u\n", read_data);
-    for (uint8_t i=0; i<read_data; i++) xprintf("%02X ", buffer[i]);
-    xprintf("\n");
-    read_data = FAT_ReadFile(&file, buffer, 16);
-    xprintf("Read: %u\n", read_data);
-    for (uint8_t i=0; i<read_data; i++) xprintf("%02X ", buffer[i]);
-    xprintf("\n");
+
+    // FAT_File_t file;
+    // file.cluster = 20;
+    // file.addr = 0;
+    // file.len = 25;
+    // file.fs = &fs;
+    // static char buffer[32];
+    // uint32_t read_data;
+
+    // read_data = FAT_ReadFile(&file, buffer, 16);
+    // xprintf("Read: %u\n", read_data);
+    // for (uint8_t i=0; i<read_data; i++) xprintf("%02X ", buffer[i]);
+    // xprintf("\n");
+    // read_data = FAT_ReadFile(&file, buffer, 16);
+    // xprintf("Read: %u\n", read_data);
+    // for (uint8_t i=0; i<read_data; i++) xprintf("%02X ", buffer[i]);
+    // xprintf("\n");
 
 
     // fs.temp.cluster = 0;
     // fs.temp.len = 0;
     // xprintf("\nPointer: %08X; Len: %08X\n", fs.temp.cluster, fs.temp.len);
-
-    // xprintf("Find by name: Status: %u\n", FAT_FindByName(&fs, "ABC.TXT"));
+    // // xprintf("Find by name: Status: %u\n", FAT_FindByName(&fs, "FOLDER"));
+    // // xprintf("Pointer: %08X; Len: %08X\n", fs.temp.cluster, fs.temp.len);
+    // xprintf("Find by path: Status: %u\n", FAT_FindByPath(&fs, "FOLDER/PODSTAVA.TXT"));
     // xprintf("Pointer: %08X; Len: %08X\n", fs.temp.cluster, fs.temp.len);
+
+
+    FAT_File_t file;
+    file.fs = &fs;
+    xprintf("\n\nFile open: Status: %u\n", FAT_FileOpen(&file, "FOLDER/PODSTAVA.TXT"));
+    //xprintf("*%u*\n", file.cluster);
+    static char buffer[1000];
+    uint32_t read_data = FAT_ReadFile(&file, buffer, file.len);
+    xprintf("Reading file... Read %u bytes.\n", read_data);
+    buffer[read_data] = '\0';
+    //for (uint8_t i=0; i<read_data; i++) xprintf(" %02X", buffer[i]); 
+    xprintf("Text: %s\n", buffer);
+
+
 
 
 
