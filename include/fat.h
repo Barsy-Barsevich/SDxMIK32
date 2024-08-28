@@ -64,6 +64,7 @@ typedef enum
     FAT_DiskNForm = 2,
     FAT_Error = 3,
     FAT_NotFound = 4,
+    FAT_NoFreeSpace = 5,
 } FAT_Status_t;
 
 
@@ -186,6 +187,7 @@ void FAT_SetPointerToRoot(FAT_Descriptor_t* local);
 FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs);
 FAT_Status_t FAT_FindByName(FAT_Descriptor_t* local, char* name);
 FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path);
+FAT_Status_t FAT_FindNewCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_t* new_cluster);
 
 FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name);
 uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);
