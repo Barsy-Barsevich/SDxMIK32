@@ -72,36 +72,71 @@ typedef struct
 {
     /* SD card descriptor */
     SD_Descriptor_t* card;
-    /* One-sector buffer */
+    /**
+     * @brief One-sector buffer
+     */
     uint8_t buffer[512];
     /**
      * The file system startaddr
      * It is a pointer to 0th cluster of file system containing information about
      */
     uint32_t fs_begin;
-    /* The 1st FAT startaddr */
+    /**
+     * The 1st FAT startaddr
+     */
     uint32_t fat1_begin;
-    /* The 2nd FAT startaddr */
+    /**
+     * The 2nd FAT startaddr
+     */
     uint32_t fat2_begin;
-    /* The data region startaddr */
+    /**
+     * The data region startaddr
+     */
     uint32_t data_region_begin;
     /**
-     *  File system parameters
+     * @brief File system parameters
      */
+
     struct __param {
-        /* Number of sectors per cluster */
+        /**
+         * @brief Number of sectors per cluster
+         */
         uint8_t sec_per_clust;
-        /* Number of FATs */
+        /**
+         * @brief Number of FATs
+         */
         uint8_t num_of_fats;
-        /* The length of FAT */
+        /**
+         * @brief The length of one FAT
+         */
         uint32_t fat_length;
     } param;
+
     /**
-     * Temp object parameters
+     * @brief Temp object parameters
      */
-    struct __temp {
+    struct __temp
+    {
+        /**
+         * Number of sector of previous directory that contains
+         * file's entire
+         */
+        uint32_t dir_sector;
+        /**
+         * Number of entire of file in dir's sector
+         */
+        uint32_t entire_in_dir_clust;
+        /**
+         * Number cluster of temp cluster / subdirectory
+         */
         uint32_t cluster;
+        /**
+         * Length of file (always 0 for directories)
+         */
         uint32_t len;
+        /**
+         * Status of temp file / subdirectory
+         */
         uint8_t status;
     } temp;
 } FAT_Descriptor_t;
@@ -110,11 +145,36 @@ typedef struct
 
 typedef struct 
 {
+    /**
+     * @brief Указатель на дескриптор файловой системы
+     */
     FAT_Descriptor_t* fs;
-    uint32_t cluster;
-    uint32_t len;
-    uint8_t status;
+    /**
+     * @brief Если бы файл был единым непрерывным массивом данных,
+     * addr - это адрес, с которого начинается запись или чтение
+     */
     uint32_t addr;
+    /**
+     * @brief Номер текущего кластера файла, Значение по адресу addr
+     * попадает в текущий адрес 
+     */
+    uint32_t cluster;
+    /**
+     * @brief Номер начального кластера директории, в которой лежит файл
+     */
+    uint32_t dir_sector;
+    /**
+     * Number of entire of file in dir's sector
+     */
+    uint32_t entire_in_dir_clust;
+    /**
+     * @brief Длина файла. При чтении декрементируется, при записи инкрементируется
+     */
+    uint32_t len;
+    /**
+     * @brief Статус файла
+     */
+    uint8_t status;
 } FAT_File_t;
 
 
@@ -129,5 +189,6 @@ FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path);
 
 FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name);
 uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);
+uint32_t FAT_WriteFile(FAT_File_t* file, char* buf, uint32_t quan);
 
 //FAT_Status_t FAT_CreateDir(FAT_Descriptor_t* local, char* name);

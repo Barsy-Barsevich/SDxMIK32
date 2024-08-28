@@ -33,6 +33,8 @@ int main()
 
     GPIO_Init();
 
+    xprintf("Start\n");
+
     SPI0_Init();
     sd.voltage = SD_Voltage_from_3_2_to_3_3;
     sd.spi = &hspi0;
@@ -175,14 +177,20 @@ int main()
 
     FAT_File_t file;
     file.fs = &fs;
-    xprintf("\n\nFile open: Status: %u\n", FAT_FileOpen(&file, "FOLDER/PODSTAVA.TXT"));
-    //xprintf("*%u*\n", file.cluster);
+    xprintf("\n\nFile open: Status: %u\n", FAT_FileOpen(&file, "TEXT.BIN"));
     static char buffer[1000];
-    uint32_t read_data = FAT_ReadFile(&file, buffer, file.len);
-    xprintf("Reading file... Read %u bytes.\n", read_data);
+    for (uint8_t i=0; i<255; i++) buffer[i] = 0x30 + (i & 0x0F);
+    uint32_t written_data = FAT_WriteFile(&file, buffer, 123);
+    xprintf("Writing file... Wrote %u bytes.\n", written_data);
+
+    file.addr = 0;
+    uint32_t read_data = FAT_ReadFile(&file, buffer, 255);
+    xprintf("Reading data... Read %u bytes.\n", read_data);
     buffer[read_data] = '\0';
-    //for (uint8_t i=0; i<read_data; i++) xprintf(" %02X", buffer[i]); 
     xprintf("Text: %s\n", buffer);
+    //for (uint8_t j=0; j<read_data; j++) xprintf(" %02X", buffer[j]);
+
+
 
 
 
