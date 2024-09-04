@@ -161,7 +161,7 @@ typedef struct
      */
     uint32_t cluster;
     /**
-     * @brief Номер начального кластера директории, в которой лежит файл
+     * @brief Номер сектора директории, в котором лежит дескриптор файла
      */
     uint32_t dir_sector;
     /**
@@ -176,6 +176,10 @@ typedef struct
      * @brief Статус файла
      */
     uint8_t status;
+    /**
+     * @brief Модификатор доступа к файлу
+     */
+    char modificator;
 } FAT_File_t;
 
 
@@ -187,9 +191,10 @@ void FAT_SetPointerToRoot(FAT_Descriptor_t* local);
 FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs);
 FAT_Status_t FAT_FindByName(FAT_Descriptor_t* local, char* name);
 FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path);
-FAT_Status_t FAT_FindNewCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_t* new_cluster);
+FAT_Status_t FAT_FindFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_t* new_cluster);
 
-FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name);
+FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator);
+FAT_Status_t FAT_FileClose(FAT_File_t* file);
 uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);
 uint32_t FAT_WriteFile(FAT_File_t* file, char* buf, uint32_t quan);
 
