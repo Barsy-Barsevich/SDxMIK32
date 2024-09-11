@@ -105,6 +105,21 @@ int main()
     FAT_File_t file;
     file.fs = &fs;
 
+    /* Open file */
+    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'R');
+    xprintf("\nFile open: Status: %u\n", status);
+
+    /* Delete file */
+    status = FAT_FileDelete(&file);
+    xprintf("\nFile delete: Status: %u\n", status);
+
+    /* Open file */
+    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'W');
+    xprintf("\nFile open: Status: %u\n", status);
+
+    while(1);
+
+
     static char str1[] = "Mama myla ramu\n";
     static char text[3000];
 
