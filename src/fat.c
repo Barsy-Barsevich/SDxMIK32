@@ -137,7 +137,7 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
         {
             /* Read sector data */
             sector = fs->data_region_begin + fs->temp.cluster * fs->param.sec_per_clust + sec;
-            if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return 49/*FAT_DiskError*/;
+            if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
             //xprintf("\n*%u*\n", cluster);
             /* Try to find the name in sector */
             uint16_t entire = 0;
@@ -194,31 +194,48 @@ FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path)
 
 FAT_Status_t FAT_FindFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_t* new_cluster)
 {
+    // Из-за некоей подставы FAT32
+    cluster += 2;
     /* Мониторим FAT */
-    uint32_t x = 0;
     uint32_t* ptr;
-    uint32_t clust = 0;
-    do
-    {
-        if (SD_SingleRead(fs->card, fs->fat1_begin + x, fs->buffer) != SD_OK) return FAT_DiskError;
+    int32_t x = -1;
+    int32_t link;
+    do {
         x += 1;
-        do
-        {
-            ptr = fs->buffer + clust;
-            clust += 4;
-        } while ((*ptr != 0) && (clust % 512 != 0));
-    } while ((*ptr != 0) && (x < fs->param.fat_length));
+        if (SD_SingleRead(fs->card, fs->fat1_begin + x, fs->buffer) != SD_OK) return FAT_DiskError;
+        link = -4;
+        do {
+            link += 4;
+            ptr = (uint32_t*)(fs->buffer + link);
+            xprintf("*%08X*\n", *ptr);
+        } while ((*ptr != 0) && (link < 512));
+    }
+    while ((*ptr != 0) && (x < fs->param.fat_length));
+
     if (x >= fs->param.fat_length) return FAT_NoFreeSpace;
+    /* link is number of free cluster in fat sector */
     /* Save number of new cluster */
-    *new_cluster = clust;
+    uint32_t new_clus = (x * 512 + (link>>2));
+    *new_cluster = new_clus - 2;
     /* Find sector of FAT containing previous cluster link */
     if (SD_SingleRead(fs->card, fs->fat1_begin + (cluster / (512/4)), fs->buffer) != SD_OK) return FAT_DiskError;
-    ptr = (uint32_t*)(fs->buffer + cluster % (512/4) * 4);
-    *ptr = clust;
+    ptr = (uint32_t*)(fs->buffer + (cluster * 4) % 512);
+    *ptr = new_clus;
+    xprintf("Write link %04X on field %04X\n", new_clus, cluster);
     if (SD_SingleErase(fs->card, fs->fat1_begin + (cluster / (512/4))) != SD_OK) return FAT_DiskError;
     if (SD_SingleWrite(fs->card, fs->fat1_begin + (cluster / (512/4)), fs->buffer) != 0) return FAT_DiskError;
     if (SD_SingleErase(fs->card, fs->fat2_begin + (cluster / (512/4))) != SD_OK) return FAT_DiskError;
     if (SD_SingleWrite(fs->card, fs->fat2_begin + (cluster / (512/4)), fs->buffer) != 0) return FAT_DiskError;
+    /* Find sector of FAT containing previous cluster link */
+    if (SD_SingleRead(fs->card, fs->fat1_begin + (new_clus / (512/4)), fs->buffer) != SD_OK) return FAT_DiskError;
+    ptr = (uint32_t*)(fs->buffer + link);
+    *ptr = 0x0FFFFFFF;
+    xprintf("Write link 0x0FFFFFFF on field %04X\n", new_clus);
+    if (SD_SingleErase(fs->card, fs->fat1_begin + (new_clus / (512/4))) != SD_OK) return FAT_DiskError;
+    if (SD_SingleWrite(fs->card, fs->fat1_begin + (new_clus / (512/4)), fs->buffer) != 0) return FAT_DiskError;
+    if (SD_SingleErase(fs->card, fs->fat2_begin + (new_clus / (512/4))) != SD_OK) return FAT_DiskError;
+    if (SD_SingleWrite(fs->card, fs->fat2_begin + (new_clus / (512/4)), fs->buffer) != 0) return FAT_DiskError;
+    return FAT_OK;
 }
 
 
@@ -247,6 +264,7 @@ FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator)
         case 'W':
             file->addr = 0;
             file->len = 0;
+            file->writing_not_finished = false;
             break;
     }
     return FAT_OK;
@@ -257,8 +275,19 @@ FAT_Status_t FAT_FileClose(FAT_File_t* file)
 {
     if (file->modificator == 'W')
     {
+        uint32_t sector;
+        /* if writing_not_finished flag is set, write data into SD */
+        if (file->writing_not_finished == true)
+        {
+            file->writing_not_finished = false;
+            uint32_t clust_len = 512 * file->fs->param.sec_per_clust;
+            sector = file->fs->data_region_begin + file->cluster * file->fs->param.sec_per_clust + (file->addr % clust_len) / 512;
+            xprintf("Write sector: %u", sector);
+            if (SD_SingleErase(file->fs->card, sector) != SD_OK) return FAT_DiskError;
+            if (SD_SingleWrite(file->fs->card, sector, file->fs->buffer) != SD_OK) return FAT_DiskError;
+        }
         /* Write new file length */
-        uint32_t sector = file->fs->data_region_begin + file->dir_sector;
+        sector = file->fs->data_region_begin + file->dir_sector;
         if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return FAT_DiskError;
         uint32_t* ptr = (uint32_t*)&file->fs->buffer[file->entire_in_dir_clust + FAT_DIR_FileSize];
         *ptr = file->len;
@@ -316,51 +345,116 @@ uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan)
 }
 
 
-uint32_t FAT_WriteFile(FAT_File_t* file, char* buf, uint32_t quan)
+// uint32_t FAT_WriteFile(FAT_File_t* file, char* buf, uint32_t quan)
+// {
+//     uint32_t counter = 0;
+//     uint32_t clust_len = 512 * file->fs->param.sec_per_clust;
+//     uint32_t addr_in_cluster = file->addr % clust_len;
+//     uint32_t sector = file->fs->data_region_begin + file->cluster * file->fs->param.sec_per_clust + file->addr / 512;
+//     while (quan > 0)
+//     {
+//         xprintf("Addr_in_clus:***%u", addr_in_cluster);
+//         if (addr_in_cluster >= clust_len)
+//         {
+//             addr_in_cluster -= clust_len;
+//             sector += 1;
+//             //Make new cluster
+//             uint32_t value_buf;
+//             FAT_Status_t err = FAT_FindFreeCluster(file->fs, file->cluster, &value_buf);
+//             xprintf("Clus %u -> clus %u\n", file->cluster, value_buf);
+//             //while(1);
+//             if (err != FAT_OK) return counter;
+//             file->cluster = value_buf;
+//         }
+//         /**/
+//         if (addr_in_cluster != 0)
+//         {
+//             if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return counter;
+//         }
+//         /* Write data */
+//         xprintf("***%u***", addr_in_cluster);
+//         uint32_t x = addr_in_cluster % 512;
+//         while ((x < 512) && (quan > 0))
+//         {
+//             file->fs->buffer[x] = buf[counter];
+//             counter += 1;
+//             x += 1;
+//             quan -= 1;
+//             file->addr += 1;
+//             addr_in_cluster += 1;
+//             file->len += 1;
+//         }
+//         xprintf("%u***\n", addr_in_cluster);
+//         if (SD_SingleErase(file->fs->card, sector) != 0) return counter;
+//         if (SD_SingleWrite(file->fs->card, sector, file->fs->buffer) != 0) return counter;
+//     }
+//     // /* Write new file length */
+//     // uint32_t sector = file->fs->data_region_begin + file->dir_sector;
+//     // if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return counter;
+//     // uint32_t* ptr = &file->fs->buffer[file->entire_in_dir_clust + FAT_DIR_FileSize];
+//     // *ptr = file->len;
+//     // if (SD_SingleErase(file->fs->card, sector) != SD_OK) return counter;
+//     // if (SD_SingleWrite(file->fs->card, sector, file->fs->buffer) != 0) return counter;
+//     return counter;
+// }
+
+
+/**
+ * @brief Writing file into SD card
+ * @
+ */
+uint32_t FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan)
 {
+    /* Index of buffer */
+    xprintf("fileaddr: %u\n", file->addr);
+    uint32_t buf_idx = file->addr % 512;
+    /* Number of written bytes */
     uint32_t counter = 0;
     uint32_t clust_len = 512 * file->fs->param.sec_per_clust;
-    uint32_t addr_in_cluster = file->addr % clust_len;
-    if (addr_in_cluster != 0)
+
+    while (quan > counter)
     {
-        uint32_t sector = file->fs->data_region_begin + file->cluster *
-            file->fs->param.sec_per_clust + addr_in_cluster / 512;
-        if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return counter;
-    }
-    while (quan > 0)
-    {
-        if (addr_in_cluster >= clust_len)
+        /* if writing is not started with 0 fs buffer address, read sector data to not lost previously written data */
+        if ((buf_idx != 0) && (file->writing_not_finished == false))
         {
-            addr_in_cluster -= clust_len;
+            uint32_t sector = file->fs->data_region_begin + file->cluster * file->fs->param.sec_per_clust + (file->addr % clust_len) / 512;
+            if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return counter;
+        }
+        /* if data is written into a new cluster, find and mark new cluster */
+        if ((file->addr % clust_len == 0) && (file->addr != 0))
+        {
             //Make new cluster
             uint32_t value_buf;
-            FAT_Status_t err = FAT_FindFreeCluster(file->fs, file->cluster, &value_buf);
-            if (err != FAT_OK) return err;
+            FAT_Status_t res = FAT_FindFreeCluster(file->fs, file->cluster, &value_buf);
+            xprintf("Clus %u -> clus %u\n", file->cluster, value_buf);
+            if (res != FAT_OK) return counter;
             file->cluster = value_buf;
         }
-        uint32_t sector = file->fs->data_region_begin + file->cluster *
-            file->fs->param.sec_per_clust + addr_in_cluster / 512;
-        /* Write data */
-        uint16_t x = addr_in_cluster % 512;
-        while ((x < 512) && (quan > 0))
+        /* Copying source data into a fs buffer */
+        xprintf("Counter: %u\n", counter);
+        xprintf("Buf_idx: %u\n", buf_idx);
+        while ((quan > counter) && (buf_idx < 512))
         {
-            file->fs->buffer[x] = buf[counter];
+            file->fs->buffer[buf_idx] = buf[counter];
             counter += 1;
-            x += 1;
-            quan -= 1;
+            buf_idx += 1;
             file->addr += 1;
-            addr_in_cluster += 1;
-            file->len += 1;
         }
-        if (SD_SingleErase(file->fs->card, sector) != 0) return counter;
-        if (SD_SingleWrite(file->fs->card, sector, file->fs->buffer) != 0) return counter;
+        /* if source data was all written, switch on writing_not_finished flag */
+        if (counter == quan) file->writing_not_finished = true;
+        /* if fs buffer was overloaded, save its data & reset writing_not_finished flag */
+        if (buf_idx >= 512)
+        {
+            for (uint8_t i=0; i<15; i++) xprintf("%c", file->fs->buffer[i]);
+            xprintf("\n");
+            file->writing_not_finished = false;
+            uint32_t sector = file->fs->data_region_begin + file->cluster * file->fs->param.sec_per_clust + ((file->addr-1) % clust_len) / 512;
+            if (SD_SingleErase(file->fs->card, sector) != SD_OK) return counter;
+            if (SD_SingleWrite(file->fs->card, sector, file->fs->buffer) != SD_OK) return counter;
+            //
+            buf_idx = 0;
+        }
     }
-    // /* Write new file length */
-    // uint32_t sector = file->fs->data_region_begin + file->dir_sector;
-    // if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return counter;
-    // uint32_t* ptr = &file->fs->buffer[file->entire_in_dir_clust + FAT_DIR_FileSize];
-    // *ptr = file->len;
-    // if (SD_SingleErase(file->fs->card, sector) != SD_OK) return counter;
-    // if (SD_SingleWrite(file->fs->card, sector, file->fs->buffer) != 0) return counter;
+    file->len += counter;
     return counter;
 }

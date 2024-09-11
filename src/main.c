@@ -27,6 +27,10 @@ static void USART_Init();
 static void GPIO_Init();
 static void SPI0_Init();
 
+void PrintFATs();
+void PrintRoot();
+void ReadSector(uint32_t num);
+
 int main()
 {
     SystemClock_Config();
@@ -55,9 +59,85 @@ int main()
     xprintf("Num of FATs: %u\n", fs.param.num_of_fats);
     xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
     
+    // uint32_t cluster;
+    // xprintf("Podstava: %s\n", FAT_FindFreeCluster(&fs, 0x0A, &cluster) == 0 ? "ne obnaruzhena" : "lyutogo tipa");
+    // xprintf("Next cluster: %u\n", cluster);
 
-    xprintf("read sector: status: %u\n", SD_SingleRead(fs.card, fs.data_region_begin, fs.buffer));
-    // xprintf("Reading sector %u: Status: %u\n", i, SD_SingleRead(&sd, fs.cluster_begin+i, fs.buffer));
+    // ReadSector((4)*fs.param.sec_per_clust+0);
+    // ReadSector((4)*fs.param.sec_per_clust+1);
+    // ReadSector((4)*fs.param.sec_per_clust+2);
+    // ReadSector((4)*fs.param.sec_per_clust+3);
+    // ReadSector((5)*fs.param.sec_per_clust+0);
+
+    // xprintf("Read FAT1: status: %u\n", SD_SingleRead(&sd, fs.fat1_begin, fs.buffer));
+    // fs.buffer[0x18] = 0xFF;
+    // fs.buffer[0x19] = 0xFF;
+    // fs.buffer[0x1A] = 0xFF;
+    // fs.buffer[0x1B] = 0x0F;
+    // fs.buffer[0x1C] = 0x00;
+    // fs.buffer[0x1D] = 0x00;
+    // fs.buffer[0x1E] = 0x00;
+    // fs.buffer[0x1F] = 0x00;
+    // xprintf("Erase FAT1: status: %u\n", SD_SingleErase(&sd, fs.fat1_begin));
+    // xprintf("Write FAT1: status: %u\n", SD_SingleWrite(&sd, fs.fat1_begin, fs.buffer));
+    // xprintf("Erase FAT2: status: %u\n", SD_SingleErase(&sd, fs.fat2_begin));
+    // xprintf("Write FAT2: status: %u\n", SD_SingleWrite(&sd, fs.fat2_begin, fs.buffer));
+
+    PrintFATs();
+    PrintRoot();
+
+    // for (uint16_t cnt=0; cnt<12; cnt++)
+    // {
+    //     xprintf("Reading sector %u: Status: %u\n", fs.data_region_begin+(cnt<<2), SD_SingleRead(&sd, fs.data_region_begin+(cnt<<2), fs.buffer));
+    //     for (uint16_t i=0; i<512; i+=16)
+    //     {
+    //         xprintf("%04X: ", i);
+    //         for (uint8_t j=0; j<16; j++)
+    //         {
+    //             xprintf(" %02X", fs.buffer[i+j]);
+    //         }
+    //         xprintf("\n");
+    //     }
+    // }
+    //while(1);
+
+    uint8_t status;
+    FAT_File_t file;
+    file.fs = &fs;
+
+    static char str1[] = "Mama myla ramu\n";
+    static char text[3000];
+
+    /* Open file */
+    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'W');
+    xprintf("\nFile open: Status: %u\n", status);
+    /* Write to file */
+    uint32_t wrote_data;
+    for (uint8_t i=0; i<199; i++)
+    {
+        wrote_data = FAT_WriteFile(&file, str1, strlen(str1));
+        xprintf("Wrote %u bytes\n", wrote_data);
+    }
+    /* Close file */
+    status  = FAT_FileClose(&file);
+    xprintf("File close: Status: %u\n", status);
+
+    /* Open file */
+    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'R');
+    xprintf("\n\nFile open: Status: %u\n", status);
+    //
+    ReadSector(file.cluster*4);
+    /* Read file */
+    uint32_t read_data = FAT_ReadFile(&file, text, 3000);
+    xprintf("Reading data... Read %u bytes.\n", read_data);
+    /* Print data */
+    text[read_data] = '\0';
+    xprintf("Text: %s\n", text);
+}
+
+void PrintFATs()
+{
+    xprintf("FAT1: Reading sector %u: Status: %u\n", fs.fat1_begin, SD_SingleRead(&sd, fs.fat1_begin, fs.buffer));
     for (uint16_t i=0; i<512; i+=16)
     {
         xprintf("%04X: ", i);
@@ -67,38 +147,48 @@ int main()
         }
         xprintf("\n");
     }
-
-    uint8_t status;
-    FAT_File_t file;
-    file.fs = &fs;
-
-
-    static char str[] = "Kazhdyi den novaja podstava";
-    static char text[1000];
-
-    /* Open file */
-    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'W');
-    xprintf("\nFile open: Status: %u\n", status);
-    /* Write to file */
-    uint32_t wrote_data = FAT_WriteFile(&file, str, strlen(str));
-    xprintf("Wrote %u bytes\n", wrote_data);
-    /* Close file */
-    status  = FAT_FileClose(&file);
-    xprintf("File close: Status: %u\n", status);
-
-    /* Open file */
-    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'R');
-    xprintf("\n\nFile open: Status: %u\n", status);
-    /* Read file */
-    uint32_t read_data = FAT_ReadFile(&file, text, 1000);
-    xprintf("Reading data... Read %u bytes.\n", read_data);
-    /* Print data */
-    text[read_data] = '\0';
-    xprintf("Text: %s\n", text);
-
-
-
+    xprintf("FAT2: Reading sector %u: Status: %u\n", fs.fat2_begin, SD_SingleRead(&sd, fs.fat2_begin, fs.buffer));
+    for (uint16_t i=0; i<512; i+=16)
+    {
+        xprintf("%04X: ", i);
+        for (uint8_t j=0; j<16; j++)
+        {
+            xprintf(" %02X", fs.buffer[i+j]);
+        }
+        xprintf("\n");
+    }
 }
+
+void PrintRoot()
+{
+    xprintf("Root: Reading sector %u: Status: %u\n", fs.data_region_begin, SD_SingleRead(&sd, fs.data_region_begin, fs.buffer));
+    for (uint16_t i=0; i<512; i+=16)
+    {
+        xprintf("%04X: ", i);
+        for (uint8_t j=0; j<16; j++)
+        {
+            xprintf(" %02X", fs.buffer[i+j]);
+        }
+        xprintf("\n");
+    }
+}
+
+void ReadSector(uint32_t num)
+{
+    xprintf("Reading sector %u: Status: %u\n", num, SD_SingleRead(&sd, fs.data_region_begin+num, fs.buffer));
+    for (uint16_t i=0; i<512; i+=16)
+    {
+        xprintf("%04X: ", i);
+        for (uint8_t j=0; j<16; j++)
+        {
+            xprintf(" %02X", fs.buffer[i+j]);
+        }
+        xprintf("\n");
+    }
+}
+
+
+
 
 void SystemClock_Config(void)
 {

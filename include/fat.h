@@ -157,7 +157,7 @@ typedef struct
     uint32_t addr;
     /**
      * @brief Номер текущего кластера файла, Значение по адресу addr
-     * попадает в текущий адрес 
+     * попадает в текущий кластер
      */
     uint32_t cluster;
     /**
@@ -165,7 +165,7 @@ typedef struct
      */
     uint32_t dir_sector;
     /**
-     * Number of entire of file in dir's sector
+     * @brief Адрес дескриптора файла в секторе директории
      */
     uint32_t entire_in_dir_clust;
     /**
@@ -180,6 +180,10 @@ typedef struct
      * @brief Модификатор доступа к файлу
      */
     char modificator;
+    /**
+     * @brief
+     */
+    bool writing_not_finished;
 } FAT_File_t;
 
 
@@ -196,6 +200,6 @@ FAT_Status_t FAT_FindFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_
 FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator);
 FAT_Status_t FAT_FileClose(FAT_File_t* file);
 uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);
-uint32_t FAT_WriteFile(FAT_File_t* file, char* buf, uint32_t quan);
+uint32_t FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan);
 
 //FAT_Status_t FAT_CreateDir(FAT_Descriptor_t* local, char* name);
