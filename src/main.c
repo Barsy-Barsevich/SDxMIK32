@@ -5,6 +5,7 @@
 #include "xprintf.h"
 
 #include "text.h"
+#include "mik32_hal_scr1_timer.h"
 
 /*
  * Данный пример демонстрирует работу с SPI в режиме ведущего.
@@ -31,9 +32,19 @@ void PrintFATs();
 void PrintRoot();
 void ReadSector(uint32_t num);
 
+uint32_t HAL_Millis()
+{
+    return HAL_Time_SCR1TIM_Millis();
+}
+void HAL_DelayMs(uint32_t ms)
+{
+    HAL_Time_SCR1TIM_DelayMs(ms);
+}
+
 int main()
 {
     SystemClock_Config();
+    HAL_Time_SCR1TIM_Init();
 
     USART_Init();
 
@@ -105,19 +116,12 @@ int main()
     FAT_File_t file;
     file.fs = &fs;
 
-    /* Open file */
-    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'R');
-    xprintf("\nFile open: Status: %u\n", status);
-
-    /* Delete file */
-    status = FAT_FileDelete(&file);
-    xprintf("\nFile delete: Status: %u\n", status);
-
-    /* Open file */
-    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'W');
-    xprintf("\nFile open: Status: %u\n", status);
+    fs.temp.cluster = 0;
+    xprintf("Status: %u\n", FAT_Create(&fs, "FOLDER", true));
 
     while(1);
+
+
 
 
     static char str1[] = "Mama myla ramu\n";

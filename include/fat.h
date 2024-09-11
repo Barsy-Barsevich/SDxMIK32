@@ -55,6 +55,24 @@
 #define FAT_ATTR_DIRECTORY      0x10
 #define FAT_ATTR_ARCHIVE        0x20
 
+typedef struct
+{
+    char Name[8];
+    char Extention[3];
+    uint8_t Attr;
+    uint8_t NTRes;
+    uint8_t CrtTimeTenth;
+    uint16_t CrtTime;
+    uint16_t CrtDate;
+    uint16_t LstAccDate;
+    uint16_t FstClusHI;
+    uint16_t WrtTime;
+    uint16_t WrtDate;
+    uint16_t FstClusLO;
+    uint32_t FileSize;
+} FAT_Entire_t;
+
+
 
 typedef enum
 {
@@ -193,18 +211,19 @@ typedef struct
 
 
 
+
+
 FAT_Status_t FAT_Init(FAT_Descriptor_t* local);
 
 void FAT_SetPointerToRoot(FAT_Descriptor_t* local);
 FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs);
 FAT_Status_t FAT_FindByName(FAT_Descriptor_t* local, char* name);
 FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path);
-FAT_Status_t FAT_FindFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_t* new_cluster);
+FAT_Status_t FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_t* new_cluster);
 
 FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator);
 FAT_Status_t FAT_FileClose(FAT_File_t* file);
 uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);
 uint32_t FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan);
 FAT_Status_t FAT_FileDelete(FAT_File_t* file);
-
-//FAT_Status_t FAT_CreateDir(FAT_Descriptor_t* local, char* name);
+FAT_Status_t FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir);
