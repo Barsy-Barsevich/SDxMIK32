@@ -39,14 +39,14 @@ void SD_SendCommand(SD_Descriptor_t* local, SD_Commands_enum command, uint32_t o
     }
 
     //HAL_SPI_CS_Disable(local->spi);
-    xprintf("Com: 0x%X; R1: %08b", command, resp[0]);
+    //xprintf("Com: 0x%X; R1: %08b", command, resp[0]);
     if ((command == CMD8) || (command == CMD58))
     {
         uint32_t ocr = ((uint32_t)resp[1]<<24 | (uint32_t)resp[2]<<16 |
                         (uint32_t)resp[3]<<8 | resp[4]);
-        xprintf(", extra: %032b", ocr);
+        //xprintf(", extra: %032b", ocr);
     }
-    xprintf("\n");
+    //xprintf("\n");
 }
 
 
@@ -260,6 +260,10 @@ SD_Status_t SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
     dummy = 0xFF;
     HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
     HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    //HAL_DelayMs(100);
+    HAL_SPI_CS_Disable(local->spi);
     return SD_OK;
 }
 
@@ -273,5 +277,6 @@ SD_Status_t SD_SingleErase(SD_Descriptor_t* local, uint32_t addr)
     SD_SendCommand(local, CMD33, addr, 0xFF, &resp);
     if (resp != 0) return resp;
     SD_SendCommand(local, CMD38, 0, 0xFF, &resp);
+    HAL_SPI_CS_Disable(local->spi);
     return SD_OK;
 }

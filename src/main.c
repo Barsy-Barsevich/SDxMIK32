@@ -70,59 +70,33 @@ int main()
     xprintf("Num of FATs: %u\n", fs.param.num_of_fats);
     xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
     
-    // uint32_t cluster;
-    // xprintf("Podstava: %s\n", FAT_FindFreeCluster(&fs, 0x0A, &cluster) == 0 ? "ne obnaruzhena" : "lyutogo tipa");
-    // xprintf("Next cluster: %u\n", cluster);
-
-    // ReadSector((4)*fs.param.sec_per_clust+0);
-    // ReadSector((4)*fs.param.sec_per_clust+1);
-    // ReadSector((4)*fs.param.sec_per_clust+2);
-    // ReadSector((4)*fs.param.sec_per_clust+3);
-    // ReadSector((5)*fs.param.sec_per_clust+0);
-
-    // xprintf("Read FAT1: status: %u\n", SD_SingleRead(&sd, fs.fat1_begin, fs.buffer));
-    // fs.buffer[0x18] = 0xFF;
-    // fs.buffer[0x19] = 0xFF;
-    // fs.buffer[0x1A] = 0xFF;
-    // fs.buffer[0x1B] = 0x0F;
-    // fs.buffer[0x1C] = 0x00;
-    // fs.buffer[0x1D] = 0x00;
-    // fs.buffer[0x1E] = 0x00;
-    // fs.buffer[0x1F] = 0x00;
-    // xprintf("Erase FAT1: status: %u\n", SD_SingleErase(&sd, fs.fat1_begin));
-    // xprintf("Write FAT1: status: %u\n", SD_SingleWrite(&sd, fs.fat1_begin, fs.buffer));
-    // xprintf("Erase FAT2: status: %u\n", SD_SingleErase(&sd, fs.fat2_begin));
-    // xprintf("Write FAT2: status: %u\n", SD_SingleWrite(&sd, fs.fat2_begin, fs.buffer));
 
     //PrintFATs();
-    PrintRoot();
-
-    // for (uint16_t cnt=0; cnt<12; cnt++)
-    // {
-    //     xprintf("Reading sector %u: Status: %u\n", fs.data_region_begin+(cnt<<2), SD_SingleRead(&sd, fs.data_region_begin+(cnt<<2), fs.buffer));
-    //     for (uint16_t i=0; i<512; i+=16)
-    //     {
-    //         xprintf("%04X: ", i);
-    //         for (uint8_t j=0; j<16; j++)
-    //         {
-    //             xprintf(" %02X", fs.buffer[i+j]);
-    //         }
-    //         xprintf("\n");
-    //     }
-    // }
-    //while(1);
+    //PrintRoot();
 
     uint8_t status;
     FAT_File_t file;
     file.fs = &fs;
 
-    xprintf("Deletion status: %u\n", FAT_Delete(&fs, "FOLDER"));
-    while(1);
+    //FAT_SetPointerToRoot(&fs);
 
+    fs.temp.entire_in_dir_clust = 0;
+    fs.temp.dir_sector = fs.data_region_begin;
     fs.temp.cluster = 0;
-    xprintf("Status: %u\n", FAT_Create(&fs, "FOLDER", true));
-
-    PrintRoot();
+    fs.temp.len = 0;
+    fs.temp.status = 0;
+    //SD_SingleRead(&sd, fs.data_region_begin, fs.buffer);
+    //PrintRoot();
+    xprintf("Creation status: %u\n", FAT_Create(&fs, "LU2A.TXT", false));
+    xprintf("Creation status: %u\n", FAT_Create(&fs, "U2SSR", true));
+    xprintf("Creation status: %u\n", FAT_Create(&fs, "KOS2TYL", true));
+    xprintf("Creation status: %u\n", FAT_Create(&fs, "UZH2OS.TXT", false));
+    //SD_SingleRead(&sd, fs.data_region_begin, fs.buffer);
+    //PrintRoot();
+    //while(1);
+    xprintf("Status: %u\n", FAT_FileOpen(&file, "UZH2OS.TXT", 'W'));
+    xprintf("Wrote: %u\n", FAT_WriteFile(&file, "Antipodstavnyi test", 19));
+    xprintf("Close: %u\n", FAT_FileClose(&file));
 
     while(1);
 
