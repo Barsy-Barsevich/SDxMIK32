@@ -225,5 +225,5 @@ FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator);
 FAT_Status_t FAT_FileClose(FAT_File_t* file);
 uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);
 uint32_t FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan);
-FAT_Status_t FAT_FileDelete(FAT_File_t* file);
 FAT_Status_t FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir);
+FAT_Status_t FAT_Delete(FAT_Descriptor_t* fs, char* name);

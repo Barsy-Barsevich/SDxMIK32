@@ -52,7 +52,8 @@ FAT_Status_t FAT_Init(FAT_Descriptor_t* fs)
  */
 void FAT_SetPointerToRoot(FAT_Descriptor_t* fs)
 {
-    fs->temp.cluster = fs->data_region_begin;
+    //fs->temp.cluster = fs->data_region_begin;
+    fs->temp.cluster = 0;
 }
 
 
@@ -88,7 +89,8 @@ FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs)
  * If the name contains a point '.' symbol, it cannot contain more than 8 meanung
  * symbols before point and more than 3 meaning symbols after point. Else, the
  * name cannot contain more than 8 meaning symbols
- * @return 
+ * @return cluster - the 1st cluster of file/dir. dir_sector - the number of sector of directory.
+ * len - length of file. entire_in_dir_clust - number of entire in dir_sector. status - status of file/dir
  */
 FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
 {
@@ -166,6 +168,17 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
 }
 
 
+/**
+ * @brief Find the number of 1st cluster of file
+ * @param fs pointer to file system's structure-descriptor
+ * @param path string of path. The last byte should be '\0'.
+ * If the path contain subdirectories, they are separated by '/' symbol (i.e.: "FOLDER/FILE").
+ * If the name of file or subdir contains a point '.' symbol, it cannot contain more than 8 meanung
+ * symbols before point and more than 3 meaning symbols after point. Else, the
+ * name cannot contain more than 8 meaning symbols
+ * @return cluster - the 1st cluster of file/dir. dir_sector - the number of sector of directory.
+ * len - length of file. entire_in_dir_clust - number of entire in dir_sector. status - status of file/dir
+ */
 FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path)
 {
     /* calculate number of '/' symbols */
@@ -193,6 +206,9 @@ FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path)
 }
 
 
+/**
+ * @brief 
+ */
 FAT_Status_t FAT_FindFreeCluster(FAT_Descriptor_t* fs, uint32_t* new_cluster)
 {
     /* Find free cluster in FAT */
@@ -218,6 +234,9 @@ FAT_Status_t FAT_FindFreeCluster(FAT_Descriptor_t* fs, uint32_t* new_cluster)
 }
 
 
+/**
+ * @brief 
+ */
 FAT_Status_t FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_t* new_cluster)
 {
     // Из-за некоей подставы FAT32
@@ -266,7 +285,18 @@ FAT_Status_t FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_
 
 
 
-
+/**
+ * @brief File open
+ * @param fs pointer to file system's structure-descriptor
+ * @param path string of path. The last byte should be '\0'.
+ * If the path contain subdirectories, they are separated by '/' symbol (i.e.: "FOLDER/FILE").
+ * If the name of file or subdir contains a point '.' symbol, it cannot contain more than 8 meanung
+ * symbols before point and more than 3 meaning symbols after point. Else, the
+ * name cannot contain more than 8 meaning symbols
+ * @param modificator allowed values: R,W,A. R - open file for reading. W - open file for writing.
+ * A - open file for rewriting
+ * @return
+ */
 FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator)
 {
     /* Set pointer to root directory */
@@ -292,6 +322,7 @@ FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator)
             file->len = 0;
             file->writing_not_finished = false;
             break;
+        default: return FAT_Error;
     }
     return FAT_OK;
 }
@@ -432,49 +463,11 @@ uint32_t FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan)
 
 
 
-FAT_Status_t FAT_FileDelete(FAT_File_t* file)
-{
-    file->len = file->fs->temp.len;
-    uint32_t sector;
-    /* Set the 0th byte of entire as 0xE5 */
-    sector = file->fs->data_region_begin + file->dir_sector;
-    if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return FAT_DiskError;
-    if ((file->fs->buffer[file->entire_in_dir_clust] & ~0xE5) != 0)
-    {
-        if (SD_SingleErase(file->fs->card, sector) != SD_OK) return FAT_DiskError;
-    }
-    file->fs->buffer[file->entire_in_dir_clust] = 0xE5;
-    if (SD_SingleWrite(file->fs->card, sector, file->fs->buffer) != SD_OK) return FAT_DiskError;
-
-    /* Clear link to all file's clusters in FATs */
-    uint32_t cluster = file->cluster + 2;
-    uint32_t* ptr;
-    sector = 0;
-    do {
-        if (sector != file->fs->fat1_begin + (cluster / (512/4)))
-        {
-            uint32_t dummy = sector;
-            sector = file->fs->fat1_begin + (cluster / (512/4));
-            if (dummy != 0)
-            {
-                if (SD_SingleErase(file->fs->card, dummy) != SD_OK) return FAT_DiskError;
-                if (SD_SingleWrite(file->fs->card, dummy, file->fs->buffer) != SD_OK) return FAT_DiskError;
-            }
-            if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return FAT_DiskError;
-        }
-        ptr = (uint32_t*)(file->fs->buffer + (cluster * 4) % 512);
-        cluster = *ptr;
-        *ptr = 0;
-    } while ((cluster & 0x0FFFFFFF) < 0x0FFFFFF7);
-    return FAT_OK;
-}
-
-
 FAT_Status_t FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir)
 {
     /* Find free cluster in FAT */
+    xprintf("Finding free cluster...\n");
     uint32_t new_cluster;
-    /* Find free cluster in FAT */
     uint32_t* ptr;
     int32_t x = -1;
     int32_t link;
@@ -498,7 +491,27 @@ FAT_Status_t FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir)
     if (SD_SingleWrite(fs->card, fs->fat1_begin + x, fs->buffer) != SD_OK) return FAT_DiskError;
     if (SD_SingleErase(fs->card, fs->fat2_begin + x) != SD_OK) return FAT_DiskError;
     if (SD_SingleWrite(fs->card, fs->fat2_begin + x, fs->buffer) != SD_OK) return FAT_DiskError;
-    
+
+    /* Set /. and /.. entires in new cluster if directory (look MS FAT Specification) */
+    if (dir == true)
+    {
+        xprintf("Creating /. and /.. entires...\n");
+        memset(fs->buffer, 0x00, 512);
+        FAT_Entire_t* ent = (FAT_Entire_t*)fs->buffer;
+        memcpy(ent[0].Name, ".          ", 11);
+        ent[0].Attr = 0x10;
+        ent[0].FstClusLO = (uint16_t)new_cluster;
+        ent[0].FstClusHI = (uint16_t)(new_cluster >> 16);
+        memcpy(ent[1].Name, "..         ", 11);
+        ent[1].Attr = 0x10;
+        ent[1].FstClusLO = 0;
+        ent[1].FstClusHI = 0;
+        /* Write data */
+        if (SD_SingleErase(fs->card, fs->data_region_begin+(new_cluster-2)*fs->param.sec_per_clust) != SD_OK) return FAT_DiskError;
+        if (SD_SingleWrite(fs->card, fs->data_region_begin+(new_cluster-2)*fs->param.sec_per_clust, fs->buffer) != SD_OK) return FAT_DiskError;
+    }
+
+    xprintf("Finding free space for descriptor in directory\n");
     /* Find free space for descriptor in directory */
     uint32_t sector;
     uint16_t entire;
@@ -539,9 +552,12 @@ FAT_Status_t FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir)
     /* entire contains pointer to descriptor in directory's sector (sector) */
     xprintf("Entire: %u\n", entire);
     xprintf("sector: %u\n", sector);
+    memset(fs->buffer+entire+11, 0x00, 32-11);
+
+    xprintf("Loading entire data\n");
     if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
     FAT_Entire_t* new_obj = (FAT_Entire_t*)(fs->buffer + entire);
-    xprintf("new_obj: %u\n", (uint32_t)new_obj);
+    xprintf("Addr: %X, Structure: %X\n", (uint32_t)(fs->buffer+entire), (uint32_t)new_obj->Name);
     new_obj->FileSize = 0;
     new_obj->Attr = (dir ? FAT_ATTR_DIRECTORY : 0);
     new_obj->FstClusLO = (uint16_t)new_cluster;
@@ -568,5 +584,47 @@ FAT_Status_t FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir)
     xprintf("*sector%u*\n", sector);
     if (SD_SingleErase(fs->card, sector) != SD_OK) return FAT_DiskError;
     if (SD_SingleWrite(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+    return FAT_OK;
+}
+
+
+
+FAT_Status_t FAT_Delete(FAT_Descriptor_t* fs, char* path)
+{
+    FAT_Status_t res;
+    res = FAT_FindByPath(fs, path);
+    if (res != FAT_OK) return res;
+
+    uint32_t sector;
+    /* Set the 0th byte of entire as 0xE5 */
+    sector = fs->data_region_begin + fs->temp.dir_sector;
+    if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+    if ((fs->buffer[fs->temp.entire_in_dir_clust] & ~0xE5) != 0)
+    {
+        if (SD_SingleErase(fs->card, sector) != SD_OK) return FAT_DiskError;
+    }
+    fs->buffer[fs->temp.entire_in_dir_clust] = 0xE5;
+    if (SD_SingleWrite(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+
+    /* Clear link to all file's clusters in FATs */
+    uint32_t cluster = fs->temp.cluster + 2;
+    uint32_t* ptr;
+    sector = 0;
+    do {
+        if (sector != fs->fat1_begin + (cluster / (512/4)))
+        {
+            uint32_t dummy = sector;
+            sector = fs->fat1_begin + (cluster / (512/4));
+            if (dummy != 0)
+            {
+                if (SD_SingleErase(fs->card, dummy) != SD_OK) return FAT_DiskError;
+                if (SD_SingleWrite(fs->card, dummy, fs->buffer) != SD_OK) return FAT_DiskError;
+            }
+            if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+        }
+        ptr = (uint32_t*)(fs->buffer + (cluster * 4) % 512);
+        cluster = *ptr;
+        *ptr = 0;
+    } while ((cluster & 0x0FFFFFFF) < 0x0FFFFFF7);
     return FAT_OK;
 }

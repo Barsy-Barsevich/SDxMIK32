@@ -94,7 +94,7 @@ int main()
     // xprintf("Erase FAT2: status: %u\n", SD_SingleErase(&sd, fs.fat2_begin));
     // xprintf("Write FAT2: status: %u\n", SD_SingleWrite(&sd, fs.fat2_begin, fs.buffer));
 
-    PrintFATs();
+    //PrintFATs();
     PrintRoot();
 
     // for (uint16_t cnt=0; cnt<12; cnt++)
@@ -116,8 +116,13 @@ int main()
     FAT_File_t file;
     file.fs = &fs;
 
+    xprintf("Deletion status: %u\n", FAT_Delete(&fs, "FOLDER"));
+    while(1);
+
     fs.temp.cluster = 0;
     xprintf("Status: %u\n", FAT_Create(&fs, "FOLDER", true));
+
+    PrintRoot();
 
     while(1);
 
