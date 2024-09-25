@@ -69,62 +69,6 @@ int main()
 }
 
 
-
-
-
-// void PrintFATs()
-// {
-//     xprintf("FAT1: Reading sector %u: Status: %u\n", fs.fat1_begin, SD_SingleRead(&sd, fs.fat1_begin, fs.buffer));
-//     for (uint16_t i=0; i<512; i+=16)
-//     {
-//         xprintf("%04X: ", i);
-//         for (uint8_t j=0; j<16; j++)
-//         {
-//             xprintf(" %02X", fs.buffer[i+j]);
-//         }
-//         xprintf("\n");
-//     }
-//     xprintf("FAT2: Reading sector %u: Status: %u\n", fs.fat2_begin, SD_SingleRead(&sd, fs.fat2_begin, fs.buffer));
-//     for (uint16_t i=0; i<512; i+=16)
-//     {
-//         xprintf("%04X: ", i);
-//         for (uint8_t j=0; j<16; j++)
-//         {
-//             xprintf(" %02X", fs.buffer[i+j]);
-//         }
-//         xprintf("\n");
-//     }
-// }
-
-// void PrintRoot()
-// {
-//     xprintf("Root: Reading sector %u: Status: %u\n", fs.data_region_begin, SD_SingleRead(&sd, fs.data_region_begin, fs.buffer));
-//     for (uint16_t i=0; i<512; i+=16)
-//     {
-//         xprintf("%04X: ", i);
-//         for (uint8_t j=0; j<16; j++)
-//         {
-//             xprintf(" %02X", fs.buffer[i+j]);
-//         }
-//         xprintf("\n");
-//     }
-// }
-
-// void ReadSector(uint32_t num)
-// {
-//     xprintf("Reading sector %u: Status: %u\n", num, SD_SingleRead(&sd, fs.data_region_begin+num, fs.buffer));
-//     for (uint16_t i=0; i<512; i+=16)
-//     {
-//         xprintf("%04X: ", i);
-//         for (uint8_t j=0; j<16; j++)
-//         {
-//             xprintf(" %02X", fs.buffer[i+j]);
-//         }
-//         xprintf("\n");
-//     }
-// }
-
-
 void SystemClock_Config(void)
 {
     PCC_InitTypeDef PCC_OscInit = {0};

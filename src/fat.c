@@ -351,54 +351,6 @@ FAT_Status_t FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_
 }
 
 
-/**
- * @brief File open
- * @param file pointer to file's structure-descriptor
- * @param path string of path. The last byte should be '\0'.
- * If the path contain subdirectories, they are separated by '/' symbol (i.e.: "FOLDER/FILE").
- * If the name of file or subdir contains a point '.' symbol, it cannot contain more than 8 meanung
- * symbols before point and more than 3 meaning symbols after point. Else, the
- * name cannot contain more than 8 meaning symbols
- * @param modificator allowed values: R,W,A. R - open file for reading. W - open file for writing.
- * A - open file for rewriting
- * @returns
- * - FAT_OK
- * - FAT_DiskError error while reading occurs
- * - FAT_Error wrong modificator
- */
-// FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator)
-// {
-//     /* Set pointer to root directory */
-//     FAT_SetPointerToRoot(file->fs);
-//     /* Find 1st cluster of file by path */
-//     FAT_Status_t res;
-//     res = FAT_FindByPath(file->fs, name);
-//     if (res != FAT_OK) return res;
-//     /* File start settings */
-//     file->cluster = file->fs->temp.cluster;
-//     file->dir_sector = file->fs->temp.dir_sector;
-//     file->entire_in_dir_clust = file->fs->temp.entire_in_dir_clust;
-//     file->status = file->fs->temp.status;
-//     file->modificator = modificator;
-//     switch (modificator)
-//     {
-//         case 'R':
-//             file->addr = 0;
-//             file->len = file->fs->temp.len;
-//             break;
-//         case 'W':
-//             file->addr = 0;
-//             file->len = 0;
-//             file->writing_not_finished = false;
-//             break;
-//         case 'A':
-
-//         default: return FAT_Error;
-//     }
-//     return FAT_OK;
-// }
-
-
 FAT_Status_t FAT_FileOpen(FAT_File_t* file, FAT_Descriptor_t* fs, char* path, char modificator)
 {
     file->fs = fs;
