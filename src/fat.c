@@ -171,7 +171,7 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
 
 
 /**
- * @brief Find the number of 1st cluster of file
+ * @brief Find the number of 1st cluster of file by the path
  * @param fs pointer to file system's structure-descriptor
  * @param path string of path. The last byte should be '\0'.
  * If the path contain subdirectories, they are separated by '/' symbol (i.e.: "FOLDER/FILE").
@@ -206,6 +206,18 @@ FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path)
 }
 
 
+/**
+ * @brief Find the number of 1st cluster of the file by path. If there are
+ * not any subdirectories of file in the path, the function creates them 
+ * @param fs pointer to file system's structure-descriptor
+ * @param path string of path. The last byte should be '\0'.
+ * If the path contain subdirectories, they are separated by '/' symbol (i.e.: "FOLDER/FILE").
+ * If the name of file or subdir contains a point '.' symbol, it cannot contain more than 8 meanung
+ * symbols before point and more than 3 meaning symbols after point. Else, the
+ * name cannot contain more than 8 meaning symbols
+ * @return cluster - the 1st cluster of file/dir. dir_sector - the number of sector of directory.
+ * len - length of file. entire_in_dir_clust - number of entire in dir_sector. status - status of file/dir
+ */
 FAT_Status_t FAT_FindOrCreateByPath(FAT_Descriptor_t* fs, char* path)
 {
     /* Adopted FAT_FBP. If dir/file not found, create it */
@@ -350,129 +362,14 @@ FAT_Status_t FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_
  * - FAT_DiskError error while reading occurs
  * - FAT_Error wrong modificator
  */
-FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator)
-{
-    /* Set pointer to root directory */
-    FAT_SetPointerToRoot(file->fs);
-    /* Find 1st cluster of file by path */
-    FAT_Status_t res;
-    res = FAT_FindByPath(file->fs, name);
-    if (res != FAT_OK) return res;
-    /* File start settings */
-    file->cluster = file->fs->temp.cluster;
-    file->dir_sector = file->fs->temp.dir_sector;
-    file->entire_in_dir_clust = file->fs->temp.entire_in_dir_clust;
-    file->status = file->fs->temp.status;
-    file->modificator = modificator;
-    switch (modificator)
-    {
-        case 'R':
-            file->addr = 0;
-            file->len = file->fs->temp.len;
-            break;
-        case 'W':
-            file->addr = 0;
-            file->len = 0;
-            file->writing_not_finished = false;
-            break;
-        case 'A':
-
-        default: return FAT_Error;
-    }
-    return FAT_OK;
-}
-
-
-
-
-
-
-
-
-// FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* path, char modificator)
+// FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator)
 // {
 //     /* Set pointer to root directory */
 //     FAT_SetPointerToRoot(file->fs);
 //     /* Find 1st cluster of file by path */
 //     FAT_Status_t res;
-//     /* Find file or create it */
-//     if (modificator == 'R')
-//     {
-//         res = FAT_FindByPath(file->fs, path);
-//         if (res != FAT_OK) return res;
-//         if ((file->fs->temp.status & FAT_ATTR_DIRECTORY) != 0) return FAT_Error;
-//     }
-//     else if (modificator == 'A')
-//     {
-//         res = FAT_FindByPath(file->fs, path);
-//         if (res == FAT_OK)
-//         {
-//             res = FAT_DeleteTemp(file->fs);
-//             if (res != FAT_OK) return res;
-//         }
-//         else if (res != FAT_NotFound) return res;
-//     }
-//     if ((modificator == 'W') || (modificator == 'A'))
-//     {
-//         /* Adopted FAT_FBP. If dir/file not found, create it */
-//         /* calculate number of '/' symbols */
-//         uint8_t descend_number = 0;
-//         uint8_t i = 0;
-//         while (path[i] != '\0')
-//         {
-//             if (path[i] == '/') descend_number += 1;
-//             i += 1;
-//         }
-//         /* Descend into directories and files */
-//         FAT_Status_t res;
-//         bool not_found = false;
-//         res = FAT_FindByName(file->fs, path);
-//         if (res == FAT_NotFound)
-//         {
-//             not_found = true;
-//             res = FAT_Create(file->fs, path, descend_number != 0);
-//             if (res != FAT_OK) return res;
-//         }
-//         else if (res != FAT_OK) return res;
-//         char* ptr = path;
-//         for (uint8_t k=descend_number; k>0; k--)
-//         {
-//             while (*ptr != '/') ptr += 1;
-//             ptr += 1;
-//             //xprintf("\n*%s*\n", ptr);
-//             if (!not_found)
-//             {
-//                 res = FAT_FindByName(file->fs, ptr);
-//                 if (res == FAT_NotFound) not_found = true;
-//                 else if (res != FAT_OK) return res;
-//             }
-//             if (not_found)
-//             {
-//                 res = FAT_Create(file->fs, ptr, k != 0);
-//                 if (res != FAT_OK) return res;
-//             }
-//         }
-//     }
-
-
-
-
-
-
-//     /* If file was found and file is opened for rewriting, delete file */
-//     if ((res == FAT_OK) && (modificator == 'A'))
-//     {
-//         res = FAT_DeleteTemp(file->fs);
-//         if (res != FAT_OK) return res;
-//     }
-//     /* If file was not found and file is opened for writing, create new file */
-//     if (((res == FAT_NotFound) && (modificator == 'W')) || (modificator == 'A'))
-//     {
-//         res = FAT_Create(file->fs, file_name, false);
-//         if (res != FAT_OK) return res;
-//     }
-//     else if (res != FAT_OK) return res;
-
+//     res = FAT_FindByPath(file->fs, name);
+//     if (res != FAT_OK) return res;
 //     /* File start settings */
 //     file->cluster = file->fs->temp.cluster;
 //     file->dir_sector = file->fs->temp.dir_sector;
@@ -491,11 +388,71 @@ FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator)
 //             file->writing_not_finished = false;
 //             break;
 //         case 'A':
-            
+
 //         default: return FAT_Error;
 //     }
 //     return FAT_OK;
 // }
+
+
+FAT_Status_t FAT_FileOpen(FAT_File_t* file, FAT_Descriptor_t* fs, char* path, char modificator)
+{
+    file->fs = fs;
+    file->modificator = modificator;
+    FAT_Status_t res;
+    switch (modificator)
+    {
+        case 'R':
+            FAT_SetPointerToRoot(file->fs);
+            res = FAT_FindByPath(file->fs, path);
+            if (res != FAT_OK) return res;
+            /* Access settings */
+            file->cluster = file->fs->temp.cluster;
+            file->dir_sector = file->fs->temp.dir_sector;
+            file->entire_in_dir_clust = file->fs->temp.entire_in_dir_clust;
+            file->status = file->fs->temp.status;
+            file->addr = 0;
+            file->len = file->fs->temp.len;
+            break;
+        case 'W':
+            FAT_SetPointerToRoot(file->fs);
+            res = FAT_FindOrCreateByPath(file->fs, path);
+            if (res != FAT_OK) return res;
+            /* Access settings */
+            file->dir_sector = file->fs->temp.dir_sector;
+            file->entire_in_dir_clust = file->fs->temp.entire_in_dir_clust;
+            file->status = file->fs->temp.status;
+            file->addr = file->fs->temp.len;
+            file->len = file->fs->temp.len;
+            file->writing_not_finished = false;
+            do {
+                res = FAT_FindNextCluster(file->fs);
+                xprintf("Cluster change, status: %u\n", res);
+            } while (res == FAT_OK);
+            if (res != FAT_NotFound) return res;
+            file->cluster = file->fs->temp.cluster;
+            break;
+        case 'A':
+            FAT_SetPointerToRoot(file->fs);
+            res = FAT_Delete(file->fs, path);
+            if ((res != FAT_OK) && (res != FAT_NotFound)) return res;
+            FAT_SetPointerToRoot(file->fs);
+            res = FAT_FindOrCreateByPath(file->fs, path);
+            if (res != FAT_OK) return res;
+            /* Access settings */
+            file->cluster = file->fs->temp.cluster;
+            file->dir_sector = file->fs->temp.dir_sector;
+            file->entire_in_dir_clust = file->fs->temp.entire_in_dir_clust;
+            file->status = file->fs->temp.status;
+            file->addr = 0;
+            file->len = 0;
+            file->writing_not_finished = false;
+            break;
+        default: return FAT_Error;
+    }
+    return FAT_OK;
+}
+
 
 
 /**
@@ -505,7 +462,7 @@ FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator)
  */
 FAT_Status_t FAT_FileClose(FAT_File_t* file)
 {
-    if (file->modificator == 'W')
+    if ((file->modificator == 'W') || (file->modificator == 'A'))
     {
         uint32_t sector;
         /* if writing_not_finished flag is set, write data into SD */

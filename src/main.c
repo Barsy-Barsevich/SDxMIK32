@@ -74,71 +74,20 @@ int main()
     //PrintFATs();
     //PrintRoot();
 
-    uint8_t status;
     FAT_File_t file;
-    file.fs = &fs;
 
-    FAT_SetPointerToRoot(&fs);
-    xprintf("Finding_Status: %u\n", FAT_FindOrCreateByPath(&fs, "WZDIR/FIGNYA/LIMON.TXT"));
+    xprintf("Open_Status: %u\n", FAT_FileOpen(&file, &fs, "TESTS/WRITE1.TXT", 'W'));
+    xprintf("Write_Status: %u\n", FAT_WriteFile(&file, "Raz, dva, tri - podstava ne pridi", 33));
+    xprintf("Close_Status: %u\n", FAT_FileClose(&file));
 
-
-    while(1);
-
-
-
-
-    fs.temp.entire_in_dir_clust = 0;
-    fs.temp.dir_sector = fs.data_region_begin;
-    fs.temp.cluster = 0;
-    fs.temp.len = 0;
-    fs.temp.status = 0;
-    //SD_SingleRead(&sd, fs.data_region_begin, fs.buffer);
-    //PrintRoot();
-    xprintf("Creation status: %u\n", FAT_Create(&fs, "LU2A.TXT", false));
-    xprintf("Creation status: %u\n", FAT_Create(&fs, "U2SSR", true));
-    xprintf("Creation status: %u\n", FAT_Create(&fs, "KOS2TYL", true));
-    xprintf("Creation status: %u\n", FAT_Create(&fs, "UZH2OS.TXT", false));
-    //SD_SingleRead(&sd, fs.data_region_begin, fs.buffer);
-    //PrintRoot();
-    //while(1);
-    xprintf("Status: %u\n", FAT_FileOpen(&file, "UZH2OS.TXT", 'W'));
-    xprintf("Wrote: %u\n", FAT_WriteFile(&file, "Antipodstavnyi test", 19));
-    xprintf("Close: %u\n", FAT_FileClose(&file));
+    PrintRoot();
 
     while(1);
-
-
-
-
-    static char str1[] = "Mama myla ramu\n";
-    static char text[3000];
-
-    /* Open file */
-    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'W');
-    xprintf("\nFile open: Status: %u\n", status);
-    /* Write to file */
-    uint32_t wrote_data;
-    for (uint8_t i=0; i<199; i++)
-    {
-        wrote_data = FAT_WriteFile(&file, str1, strlen(str1));
-        xprintf("Wrote %u bytes\n", wrote_data);
-    }
-    /* Close file */
-    status  = FAT_FileClose(&file);
-    xprintf("File close: Status: %u\n", status);
-
-    /* Open file */
-    status = FAT_FileOpen(&file, "PODSTAVA.TXT", 'R');
-    xprintf("\n\nFile open: Status: %u\n", status);
-    //
-    ReadSector(file.cluster*4);
-    /* Read file */
-    uint32_t read_data = FAT_ReadFile(&file, text, 3000);
-    xprintf("Reading data... Read %u bytes.\n", read_data);
-    /* Print data */
-    text[read_data] = '\0';
-    xprintf("Text: %s\n", text);
 }
+
+
+
+
 
 void PrintFATs()
 {
