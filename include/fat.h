@@ -213,13 +213,14 @@ typedef struct
 
 
 
-FAT_Status_t FAT_Init(FAT_Descriptor_t* local);
+FAT_Status_t FAT_Init(FAT_Descriptor_t* local);                         //< FAT_I
 
-void FAT_SetPointerToRoot(FAT_Descriptor_t* local);
-FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs);
-FAT_Status_t FAT_FindByName(FAT_Descriptor_t* local, char* name);
-FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path);
-FAT_Status_t FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, uint32_t* new_cluster);
+void FAT_SetPointerToRoot(FAT_Descriptor_t* local);                     //< FAT_SPR
+FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs);                 //< FAT_FNC
+FAT_Status_t FAT_FindByName(FAT_Descriptor_t* local, char* name);       //< FAT_FBN
+FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path);          //< FAT_FBP
+FAT_Status_t FAT_FindOrCreateByPath(FAT_Descriptor_t* fs, char* path);  //< FAT_FCBP
+FAT_Status_t FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t clust, uint32_t* new_clust);
 
 FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator);
 FAT_Status_t FAT_FileClose(FAT_File_t* file);

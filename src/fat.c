@@ -206,6 +206,44 @@ FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path)
 }
 
 
+FAT_Status_t FAT_FindOrCreateByPath(FAT_Descriptor_t* fs, char* path)
+{
+    /* Adopted FAT_FBP. If dir/file not found, create it */
+    /* calculate number of '/' symbols */
+    uint8_t descend_number = 1;
+    uint8_t i = 0;
+    while (path[i] != '\0')
+    {
+        if (path[i] == '/') descend_number += 1;
+        i += 1;
+    }
+    /* Descend into directories and files */
+    FAT_Status_t res;
+    bool not_found = false;
+    char* ptr = path;
+    for (uint8_t k=0; k<descend_number; k++)
+    {
+        if (!not_found)
+        {
+            res = FAT_FindByName(fs, ptr);
+            if (res == FAT_NotFound) not_found = true;
+            else if (res != FAT_OK) return res;
+        }
+        if (not_found)
+        {
+            res = FAT_Create(fs, ptr, k != (descend_number-1));
+            if (res != FAT_OK) return res;
+            /* Descend into created object */
+            res = FAT_FindByName(fs, ptr);
+            if (res != FAT_OK) return res;
+        }
+        while (*ptr != '/') ptr += 1;
+        ptr += 1;
+    }
+    return FAT_OK;
+}
+
+
 /**
  * @brief Finding new free cluster
  * @param fs pointer to file system's structure-descriptor

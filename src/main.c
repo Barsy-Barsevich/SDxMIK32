@@ -78,10 +78,8 @@ int main()
     FAT_File_t file;
     file.fs = &fs;
 
-    xprintf("Open_Status: %u\n", FAT_FileOpen(&file, "ANM.TXT", 'R'));
-    char buf[100];
-    xprintf("Reading_Status: %u\n", FAT_ReadFile(&file, buf, 100));
-    HAL_USART_Write(&husart0, buf, 30, USART_TIMEOUT_DEFAULT);
+    FAT_SetPointerToRoot(&fs);
+    xprintf("Finding_Status: %u\n", FAT_FindOrCreateByPath(&fs, "WZDIR/FIGNYA/LIMON.TXT"));
 
 
     while(1);
