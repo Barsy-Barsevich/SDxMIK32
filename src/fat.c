@@ -46,7 +46,7 @@ FAT_Status_t FAT_Init(FAT_Descriptor_t* fs)
 
 
 /**
- * @brief Set file system temp-pointer to root directory
+ * @brief Set file system temp-pointer [fs.temp.cluster] to root directory
  * @param fs file system's descriptor-structure
  * @return none
  */
@@ -58,9 +58,10 @@ void FAT_SetPointerToRoot(FAT_Descriptor_t* fs)
 
 
 /**
- * @brief The function finds the cluster next to [fs.temp.cluster] cluster
+ * @brief The function finds the cluster next to [fs.temp.cluster] cluster and puts
+ * number of new cluster to [fs.temp.cluster]
  * @param fs file system's descriptor-structure
- * @return
+ * @returns
  * - FAT_OK the next cluster was found succesfully, its pointer was saved to [fs.temp.cluster]
  * - FAT_DiskError - the driver error occured, [fs.temp.cluster] not changed
  * - FAT_NotFound - there are not any next clusters, [fs.temp.cluster] not changed
@@ -83,7 +84,8 @@ FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs)
 
 
 /**
- * @brief Find the number of 1st cluster of file/subdirectory in the directory
+ * @brief Find the number of 1st cluster of file/subdirectory in the directory [fs.temp.cluster]
+ * and puts it to [fs.temp.cluster]
  * @param fs pointer to file system's structure-descriptor
  * @param name string of name. The last byte should be '\0' or '/'.
  * If the name contains a point '.' symbol, it cannot contain more than 8 meanung
@@ -182,7 +184,7 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* fs, char* name)
 FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path)
 {
     /* calculate number of '/' symbols */
-    uint8_t descend_number = 0;
+    uint8_t descend_number = 1;
     uint8_t i = 0;
     while (path[i] != '\0')
     {
@@ -191,16 +193,14 @@ FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path)
     }
     /* Descend into directories and files */
     FAT_Status_t res;
-    res = FAT_FindByName(fs, path);
-    if (res != FAT_OK) return res;
     char* ptr = path;
     for (uint8_t k=0; k<descend_number; k++)
     {
-        while (*ptr != '/') ptr += 1;
-        ptr += 1;
-        //xprintf("\n*%s*\n", ptr);
         res = FAT_FindByName(fs, ptr);
         if (res != FAT_OK) return res;
+        /* Find next name in path */
+        while (*ptr != '/') ptr += 1;
+        ptr += 1;
     }
     return FAT_OK;
 }
@@ -337,10 +337,127 @@ FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* name, char modificator)
             file->len = 0;
             file->writing_not_finished = false;
             break;
+        case 'A':
+
         default: return FAT_Error;
     }
     return FAT_OK;
 }
+
+
+
+
+
+
+
+
+// FAT_Status_t FAT_FileOpen(FAT_File_t* file, char* path, char modificator)
+// {
+//     /* Set pointer to root directory */
+//     FAT_SetPointerToRoot(file->fs);
+//     /* Find 1st cluster of file by path */
+//     FAT_Status_t res;
+//     /* Find file or create it */
+//     if (modificator == 'R')
+//     {
+//         res = FAT_FindByPath(file->fs, path);
+//         if (res != FAT_OK) return res;
+//         if ((file->fs->temp.status & FAT_ATTR_DIRECTORY) != 0) return FAT_Error;
+//     }
+//     else if (modificator == 'A')
+//     {
+//         res = FAT_FindByPath(file->fs, path);
+//         if (res == FAT_OK)
+//         {
+//             res = FAT_DeleteTemp(file->fs);
+//             if (res != FAT_OK) return res;
+//         }
+//         else if (res != FAT_NotFound) return res;
+//     }
+//     if ((modificator == 'W') || (modificator == 'A'))
+//     {
+//         /* Adopted FAT_FBP. If dir/file not found, create it */
+//         /* calculate number of '/' symbols */
+//         uint8_t descend_number = 0;
+//         uint8_t i = 0;
+//         while (path[i] != '\0')
+//         {
+//             if (path[i] == '/') descend_number += 1;
+//             i += 1;
+//         }
+//         /* Descend into directories and files */
+//         FAT_Status_t res;
+//         bool not_found = false;
+//         res = FAT_FindByName(file->fs, path);
+//         if (res == FAT_NotFound)
+//         {
+//             not_found = true;
+//             res = FAT_Create(file->fs, path, descend_number != 0);
+//             if (res != FAT_OK) return res;
+//         }
+//         else if (res != FAT_OK) return res;
+//         char* ptr = path;
+//         for (uint8_t k=descend_number; k>0; k--)
+//         {
+//             while (*ptr != '/') ptr += 1;
+//             ptr += 1;
+//             //xprintf("\n*%s*\n", ptr);
+//             if (!not_found)
+//             {
+//                 res = FAT_FindByName(file->fs, ptr);
+//                 if (res == FAT_NotFound) not_found = true;
+//                 else if (res != FAT_OK) return res;
+//             }
+//             if (not_found)
+//             {
+//                 res = FAT_Create(file->fs, ptr, k != 0);
+//                 if (res != FAT_OK) return res;
+//             }
+//         }
+//     }
+
+
+
+
+
+
+//     /* If file was found and file is opened for rewriting, delete file */
+//     if ((res == FAT_OK) && (modificator == 'A'))
+//     {
+//         res = FAT_DeleteTemp(file->fs);
+//         if (res != FAT_OK) return res;
+//     }
+//     /* If file was not found and file is opened for writing, create new file */
+//     if (((res == FAT_NotFound) && (modificator == 'W')) || (modificator == 'A'))
+//     {
+//         res = FAT_Create(file->fs, file_name, false);
+//         if (res != FAT_OK) return res;
+//     }
+//     else if (res != FAT_OK) return res;
+
+//     /* File start settings */
+//     file->cluster = file->fs->temp.cluster;
+//     file->dir_sector = file->fs->temp.dir_sector;
+//     file->entire_in_dir_clust = file->fs->temp.entire_in_dir_clust;
+//     file->status = file->fs->temp.status;
+//     file->modificator = modificator;
+//     switch (modificator)
+//     {
+//         case 'R':
+//             file->addr = 0;
+//             file->len = file->fs->temp.len;
+//             break;
+//         case 'W':
+//             file->addr = 0;
+//             file->len = 0;
+//             file->writing_not_finished = false;
+//             break;
+//         case 'A':
+            
+//         default: return FAT_Error;
+//     }
+//     return FAT_OK;
+// }
 
 
 /**
@@ -588,16 +705,16 @@ FAT_Status_t FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir)
     memset(new_obj->Name, 0x20, 8);
     memset(new_obj->Extention, 0x20, 3);
     uint8_t i=0;
-    while ((name[i] != '.') && (name[i] != '\0') && (i<8))
+    while ((name[i] != '.') && (name[i] != '\0') && (name[i] != '/') && (i<8))
     {
         new_obj->Name[i] = name[i];
         i += 1;
     }
-    if ((name[i] != '\0') && (i < 8))
+    if ((name[i] != '\0') && (name[i] != '/') && (i < 8))
     {
         i += 1;
         uint8_t j=0;
-        while ((name[i] != '\0') && (j<3))
+        while ((name[i] != '\0') && (name[i] != '/') && (j<3))
         {
             new_obj->Extention[j] = name[i];
             i += 1;
@@ -610,22 +727,8 @@ FAT_Status_t FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir)
 }
 
 
-/**
- * @brief File or directory deletion
- * @param fs pointer to file system's structure-descriptor
- * @param path string of path. The last byte should be '\0'.
- * If the path contain subdirectories, they are separated by '/' symbol (i.e.: "FOLDER/FILE").
- * If the name of file or subdir contains a point '.' symbol, it cannot contain more than 8 meanung
- * symbols before point and more than 3 meaning symbols after point. Else, the
- * name cannot contain more than 8 meaning symbols
- * @returns
- */
-FAT_Status_t FAT_Delete(FAT_Descriptor_t* fs, char* path)
+FAT_Status_t FAT_DeleteTemp(FAT_Descriptor_t* fs)
 {
-    FAT_Status_t res;
-    res = FAT_FindByPath(fs, path);
-    if (res != FAT_OK) return res;
-
     uint32_t sector;
     /* Set the 0th byte of entire as 0xE5 */
     sector = fs->data_region_begin + fs->temp.dir_sector;
@@ -658,4 +761,22 @@ FAT_Status_t FAT_Delete(FAT_Descriptor_t* fs, char* path)
         *ptr = 0;
     } while ((cluster & 0x0FFFFFFF) < 0x0FFFFFF7);
     return FAT_OK;
+}
+
+/**
+ * @brief File or directory deletion
+ * @param fs pointer to file system's structure-descriptor
+ * @param path string of path. The last byte should be '\0'.
+ * If the path contain subdirectories, they are separated by '/' symbol (i.e.: "FOLDER/FILE").
+ * If the name of file or subdir contains a point '.' symbol, it cannot contain more than 8 meanung
+ * symbols before point and more than 3 meaning symbols after point. Else, the
+ * name cannot contain more than 8 meaning symbols
+ * @returns
+ */
+FAT_Status_t FAT_Delete(FAT_Descriptor_t* fs, char* path)
+{
+    FAT_Status_t res;
+    res = FAT_FindByPath(fs, path);
+    if (res != FAT_OK) return res;
+    return FAT_DeleteTemp(fs);
 }

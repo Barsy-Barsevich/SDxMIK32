@@ -78,7 +78,16 @@ int main()
     FAT_File_t file;
     file.fs = &fs;
 
-    //FAT_SetPointerToRoot(&fs);
+    xprintf("Open_Status: %u\n", FAT_FileOpen(&file, "ANM.TXT", 'R'));
+    char buf[100];
+    xprintf("Reading_Status: %u\n", FAT_ReadFile(&file, buf, 100));
+    HAL_USART_Write(&husart0, buf, 30, USART_TIMEOUT_DEFAULT);
+
+
+    while(1);
+
+
+
 
     fs.temp.entire_in_dir_clust = 0;
     fs.temp.dir_sector = fs.data_region_begin;
