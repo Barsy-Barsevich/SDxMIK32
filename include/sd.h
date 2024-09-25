@@ -90,7 +90,7 @@ typedef enum
     SDv2 = 1,
     SDHC = 2,
     MMC = 3,
-    Not_SD = 4,
+    Unknown = 4,
 } SD_CardType_enum;
 
 typedef enum
@@ -137,11 +137,13 @@ typedef struct sd
 } SD_Descriptor_t;
 
 
-void SD_SendCommand(SD_Descriptor_t* local, SD_Commands_enum command, uint32_t operand, uint8_t crc, uint8_t* resp);
+SD_Status_t SD_SendCommand(SD_Descriptor_t* local, SD_Commands_enum command, uint32_t operand, uint8_t crc, uint8_t* resp);
 SD_Status_t SD_Init(SD_Descriptor_t* param);
 SD_Status_t SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
 SD_Status_t SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
 SD_Status_t SD_SingleErase(SD_Descriptor_t* local, uint32_t addr);
 
+SD_Status_t SD_card_init(SD_Descriptor_t** card);
+SD_Status_t SD_clock_increase();
 
 #endif

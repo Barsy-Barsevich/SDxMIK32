@@ -4,9 +4,6 @@
 #include "mik32_hal_usart.h"
 #include "xprintf.h"
 
-#include "text.h"
-#include "mik32_hal_scr1_timer.h"
-
 /*
  * Данный пример демонстрирует работу с SPI в режиме ведущего.
  * Ведущий передает и принимает от ведомого на выводе CS0 20 байт.
@@ -17,62 +14,48 @@
 
 USART_HandleTypeDef husart0;
 
-SPI_HandleTypeDef hspi0;
-SD_Descriptor_t sd;
 FAT_Descriptor_t fs;
 
 
 
 void SystemClock_Config(void);
 static void USART_Init();
-static void GPIO_Init();
-static void SPI0_Init();
 
 void PrintFATs();
 void PrintRoot();
 void ReadSector(uint32_t num);
 
-uint32_t HAL_Millis()
-{
-    return HAL_Time_SCR1TIM_Millis();
-}
-void HAL_DelayMs(uint32_t ms)
-{
-    HAL_Time_SCR1TIM_DelayMs(ms);
-}
 
 int main()
 {
     SystemClock_Config();
-    HAL_Time_SCR1TIM_Init();
 
     USART_Init();
 
-    GPIO_Init();
-
     xprintf("Start\n");
 
-    SPI0_Init();
-    sd.voltage = SD_Voltage_from_3_2_to_3_3;
-    sd.spi = &hspi0;
-    xprintf("\nResult if init: Status: %u; ", SD_Init(&sd));
-    xprintf("Type: %s\n\n", sd.type == 0 ? "SDv1" : sd.type == 1 ? "SDv1" : sd.type == 2 ? "SDHC" : sd.type == 3 ? "MMC" : "NotSD");
-    HAL_DelayMs(1000);
-    HAL_GPIO_WritePin(GPIO_2, GPIO_PIN_7, 1);
+    FAT_Status_t res;
+    res = FAT_Init(&fs);
+    xprintf("FS initialization: %s", res==FAT_OK ? "ok\n" : "failed, ");
+    if (res != FAT_OK)
+    {
+        switch (res)
+        {
+            case FAT_DiskError: xprintf("disk error"); break;
+            case FAT_DiskNForm: xprintf("disk not mount"); break;
+            default: xprintf("unknown error"); break;
+        }
+        xprintf("\n");
+        while(1);
+    }
+    // xprintf("FS startaddr: %u\n", fs.fs_begin);
+    // xprintf("First FAT1 startaddr: %u\n", fs.fat1_begin);
+    // xprintf("First FAT2 startaddr: %u\n", fs.fat2_begin);
+    // xprintf("First data cluster: %u\n", fs.data_region_begin);
+    // xprintf("FAT length: %u\n", fs.param.fat_length);
+    // xprintf("Num of FATs: %u\n", fs.param.num_of_fats);
+    // xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
 
-    fs.card = &sd;
-    xprintf("FAT init. Status: %u\n", FAT_Init(&fs));
-    xprintf("FS startaddr: %u\n", fs.fs_begin);
-    xprintf("First FAT1 startaddr: %u\n", fs.fat1_begin);
-    xprintf("First FAT2 startaddr: %u\n", fs.fat2_begin);
-    xprintf("First data cluster: %u\n", fs.data_region_begin);
-    xprintf("FAT length: %u\n", fs.param.fat_length);
-    xprintf("Num of FATs: %u\n", fs.param.num_of_fats);
-    xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
-    
-
-    //PrintFATs();
-    //PrintRoot();
 
     FAT_File_t file;
 
@@ -80,7 +63,7 @@ int main()
     xprintf("Write_Status: %u\n", FAT_WriteFile(&file, "Raz, dva, tri - podstava ne pridi", 33));
     xprintf("Close_Status: %u\n", FAT_FileClose(&file));
 
-    PrintRoot();
+    //PrintRoot();
 
     while(1);
 }
@@ -89,59 +72,57 @@ int main()
 
 
 
-void PrintFATs()
-{
-    xprintf("FAT1: Reading sector %u: Status: %u\n", fs.fat1_begin, SD_SingleRead(&sd, fs.fat1_begin, fs.buffer));
-    for (uint16_t i=0; i<512; i+=16)
-    {
-        xprintf("%04X: ", i);
-        for (uint8_t j=0; j<16; j++)
-        {
-            xprintf(" %02X", fs.buffer[i+j]);
-        }
-        xprintf("\n");
-    }
-    xprintf("FAT2: Reading sector %u: Status: %u\n", fs.fat2_begin, SD_SingleRead(&sd, fs.fat2_begin, fs.buffer));
-    for (uint16_t i=0; i<512; i+=16)
-    {
-        xprintf("%04X: ", i);
-        for (uint8_t j=0; j<16; j++)
-        {
-            xprintf(" %02X", fs.buffer[i+j]);
-        }
-        xprintf("\n");
-    }
-}
+// void PrintFATs()
+// {
+//     xprintf("FAT1: Reading sector %u: Status: %u\n", fs.fat1_begin, SD_SingleRead(&sd, fs.fat1_begin, fs.buffer));
+//     for (uint16_t i=0; i<512; i+=16)
+//     {
+//         xprintf("%04X: ", i);
+//         for (uint8_t j=0; j<16; j++)
+//         {
+//             xprintf(" %02X", fs.buffer[i+j]);
+//         }
+//         xprintf("\n");
+//     }
+//     xprintf("FAT2: Reading sector %u: Status: %u\n", fs.fat2_begin, SD_SingleRead(&sd, fs.fat2_begin, fs.buffer));
+//     for (uint16_t i=0; i<512; i+=16)
+//     {
+//         xprintf("%04X: ", i);
+//         for (uint8_t j=0; j<16; j++)
+//         {
+//             xprintf(" %02X", fs.buffer[i+j]);
+//         }
+//         xprintf("\n");
+//     }
+// }
 
-void PrintRoot()
-{
-    xprintf("Root: Reading sector %u: Status: %u\n", fs.data_region_begin, SD_SingleRead(&sd, fs.data_region_begin, fs.buffer));
-    for (uint16_t i=0; i<512; i+=16)
-    {
-        xprintf("%04X: ", i);
-        for (uint8_t j=0; j<16; j++)
-        {
-            xprintf(" %02X", fs.buffer[i+j]);
-        }
-        xprintf("\n");
-    }
-}
+// void PrintRoot()
+// {
+//     xprintf("Root: Reading sector %u: Status: %u\n", fs.data_region_begin, SD_SingleRead(&sd, fs.data_region_begin, fs.buffer));
+//     for (uint16_t i=0; i<512; i+=16)
+//     {
+//         xprintf("%04X: ", i);
+//         for (uint8_t j=0; j<16; j++)
+//         {
+//             xprintf(" %02X", fs.buffer[i+j]);
+//         }
+//         xprintf("\n");
+//     }
+// }
 
-void ReadSector(uint32_t num)
-{
-    xprintf("Reading sector %u: Status: %u\n", num, SD_SingleRead(&sd, fs.data_region_begin+num, fs.buffer));
-    for (uint16_t i=0; i<512; i+=16)
-    {
-        xprintf("%04X: ", i);
-        for (uint8_t j=0; j<16; j++)
-        {
-            xprintf(" %02X", fs.buffer[i+j]);
-        }
-        xprintf("\n");
-    }
-}
-
-
+// void ReadSector(uint32_t num)
+// {
+//     xprintf("Reading sector %u: Status: %u\n", num, SD_SingleRead(&sd, fs.data_region_begin+num, fs.buffer));
+//     for (uint16_t i=0; i<512; i+=16)
+//     {
+//         xprintf("%04X: ", i);
+//         for (uint8_t j=0; j<16; j++)
+//         {
+//             xprintf(" %02X", fs.buffer[i+j]);
+//         }
+//         xprintf("\n");
+//     }
+// }
 
 
 void SystemClock_Config(void)
@@ -204,39 +185,4 @@ static void USART_Init()
     husart0.Modem.ddis = Disable;//out
     husart0.baudrate = 1000000;
     HAL_USART_Init(&husart0);
-}
-
-
-static void GPIO_Init()
-{
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-    __HAL_PCC_GPIO_0_CLK_ENABLE();
-    __HAL_PCC_GPIO_1_CLK_ENABLE();
-    __HAL_PCC_GPIO_2_CLK_ENABLE();
-    GPIO_InitStruct.Pin = GPIO_PIN_7;
-    GPIO_InitStruct.Mode = HAL_GPIO_MODE_GPIO_OUTPUT;
-    GPIO_InitStruct.Pull = HAL_GPIO_PULL_NONE;
-    HAL_GPIO_Init(GPIO_2, &GPIO_InitStruct);
-}
-
-
-static void SPI0_Init()
-{
-    hspi0.Instance = SPI_0;
-    /* Режим SPI */
-    hspi0.Init.SPI_Mode = HAL_SPI_MODE_MASTER;
-    /* Настройки */
-    hspi0.Init.CLKPhase = SPI_PHASE_ON;
-    hspi0.Init.CLKPolarity = SPI_POLARITY_HIGH;
-    hspi0.Init.ThresholdTX = 4;
-    /* Настройки для ведущего */
-    hspi0.Init.BaudRateDiv = SPI_BAUDRATE_DIV256;
-    hspi0.Init.Decoder = SPI_DECODER_NONE;
-    hspi0.Init.ManualCS = SPI_MANUALCS_ON;
-    hspi0.Init.ChipSelect = SPI_CS_0;
-    if (HAL_SPI_Init(&hspi0) != HAL_OK)
-    {
-        xprintf("SPI_Init_Error\n");
-    }
 }

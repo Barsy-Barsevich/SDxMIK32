@@ -221,7 +221,6 @@ FAT_Status_t FAT_FindByName(FAT_Descriptor_t* local, char* name);       //< FAT_
 FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path);          //< FAT_FBP
 FAT_Status_t FAT_FindOrCreateByPath(FAT_Descriptor_t* fs, char* path);  //< FAT_FCBP
 FAT_Status_t FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t clust, uint32_t* new_clust);
-
 FAT_Status_t FAT_FileOpen(FAT_File_t* file, FAT_Descriptor_t* fs, char* name, char modificator);
 FAT_Status_t FAT_FileClose(FAT_File_t* file);
 uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);

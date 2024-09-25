@@ -3,6 +3,10 @@
 
 FAT_Status_t FAT_Init(FAT_Descriptor_t* fs)
 {
+    /* SD card initializing */
+    SD_Descriptor_t* card;
+    if (SD_card_init(&card) != SD_OK) return FAT_DiskError;
+    fs->card = card;
     /* Read Master boot record */
     if (SD_SingleRead(fs->card, 0, fs->buffer) != 0) return FAT_DiskError;
     /* Read LBAs */
@@ -427,7 +431,7 @@ FAT_Status_t FAT_FileOpen(FAT_File_t* file, FAT_Descriptor_t* fs, char* path, ch
             file->writing_not_finished = false;
             do {
                 res = FAT_FindNextCluster(file->fs);
-                xprintf("Cluster change, status: %u\n", res);
+                //xprintf("Cluster change, status: %u\n", res);
             } while (res == FAT_OK);
             if (res != FAT_NotFound) return res;
             file->cluster = file->fs->temp.cluster;
@@ -471,7 +475,7 @@ FAT_Status_t FAT_FileClose(FAT_File_t* file)
             file->writing_not_finished = false;
             uint32_t clust_len = 512 * file->fs->param.sec_per_clust;
             sector = file->fs->data_region_begin + file->cluster * file->fs->param.sec_per_clust + (file->addr % clust_len) / 512;
-            xprintf("Write sector: %u", sector);
+            //xprintf("Write sector: %u", sector);
             if (SD_SingleErase(file->fs->card, sector) != SD_OK) return FAT_DiskError;
             if (SD_SingleWrite(file->fs->card, sector, file->fs->buffer) != SD_OK) return FAT_DiskError;
         }
