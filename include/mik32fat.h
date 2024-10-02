@@ -213,17 +213,17 @@ typedef struct
 
 
 
-FAT_Status_t FAT_Init(FAT_Descriptor_t* local);                         //< FAT_I
+FAT_Status_t MIK32FAT_Init(FAT_Descriptor_t* fs);
 
-void FAT_SetPointerToRoot(FAT_Descriptor_t* local);                     //< FAT_SPR
-FAT_Status_t FAT_FindNextCluster(FAT_Descriptor_t* fs);                 //< FAT_FNC
-FAT_Status_t FAT_FindByName(FAT_Descriptor_t* local, char* name);       //< FAT_FBN
-FAT_Status_t FAT_FindByPath(FAT_Descriptor_t* fs, char* path);          //< FAT_FBP
-FAT_Status_t FAT_FindOrCreateByPath(FAT_Descriptor_t* fs, char* path);  //< FAT_FCBP
-FAT_Status_t FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t clust, uint32_t* new_clust);
-FAT_Status_t FAT_FileOpen(FAT_File_t* file, FAT_Descriptor_t* fs, char* name, char modificator);
-FAT_Status_t FAT_FileClose(FAT_File_t* file);
-uint32_t FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);
-uint32_t FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan);
-FAT_Status_t FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir);
-FAT_Status_t FAT_Delete(FAT_Descriptor_t* fs, char* name);
+void MIK32FAT_SetPointerToRoot(FAT_Descriptor_t* local);
+FAT_Status_t MIK32FAT_FindNextCluster(FAT_Descriptor_t* fs);
+FAT_Status_t MIK32FAT_FindByName(FAT_Descriptor_t* local, char* name);
+FAT_Status_t MIK32FAT_FindByPath(FAT_Descriptor_t* fs, char* path);
+FAT_Status_t MIK32FAT_FindOrCreateByPath(FAT_Descriptor_t* fs, char* path);
+FAT_Status_t MIK32FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t clust, uint32_t* new_clust);
+FAT_Status_t MIK32FAT_FileOpen(FAT_File_t* file, FAT_Descriptor_t* fs, char* name, char modificator);
+FAT_Status_t MIK32FAT_FileClose(FAT_File_t* file);
+uint32_t MIK32FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan);
+uint32_t MIK32FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan);
+FAT_Status_t MIK32FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir);
+FAT_Status_t MIK32FAT_Delete(FAT_Descriptor_t* fs, char* name);

@@ -1,6 +1,6 @@
 #include "mik32_hal_spi.h"
 #include "sd.h"
-#include "fat.h"
+#include "mik32fat.h"
 #include "mik32_hal_usart.h"
 #include "xprintf.h"
 
@@ -30,7 +30,7 @@ int main()
 
     /* Инициализация */
     FAT_Status_t res;
-    res = FAT_Init(&fs);
+    res = MIK32FAT_Init(&fs);
     xprintf("FS initialization: %s", res==FAT_OK ? "ok\n" : "failed, ");
     if (res != FAT_OK)
     {
@@ -54,7 +54,7 @@ int main()
 #ifdef READ_EXAMPLE
     xprintf("\nReading file example\n");
     FAT_File_t read_file;
-    res = FAT_FileOpen(&read_file, &fs, "TESTS/READ.TXT", 'R');
+    res = MIK32FAT_FileOpen(&read_file, &fs, "TESTS/READ.TXT", 'R');
     xprintf("TESTS/READ.TXT file open status: %d\n", res);
     if (res != FAT_OK)
     {
@@ -71,17 +71,17 @@ int main()
     }
     else
     {
-        uint16_t bytes_read = FAT_ReadFile(&read_file, read_buffer, read_file.len);
+        uint16_t bytes_read = MIK32FAT_ReadFile(&read_file, read_buffer, read_file.len);
         /* Вставить символ возврата каретки для корректной печати */
         read_buffer[bytes_read] = '\0';
         xprintf("Text:\n%s\n", read_buffer);
     }
-    xprintf("Close status: %d\n", FAT_FileClose(&read_file));
+    xprintf("Close status: %d\n", MIK32FAT_FileClose(&read_file));
 #endif
 #ifdef WRITE_EXAMPLE
     xprintf("\nWriting file example\n");
     FAT_File_t write_file;
-    res = FAT_FileOpen(&write_file, &fs, "TESTS/WRITE1.TXT", 'W');
+    res = MIK32FAT_FileOpen(&write_file, &fs, "TESTS/WRITE1.TXT", 'W');
     xprintf("TESTS/WRITE1.TXT file open status: %d\n", res);
     if (res != FAT_OK)
     {
@@ -92,8 +92,8 @@ int main()
         }
     }
     char str[] = "Writing string to file\n";
-    xprintf("Wrote bytes: %d\n", FAT_WriteFile(&write_file, str, strlen(str)-1));
-    xprintf("Close status: %d\n", FAT_FileClose(&write_file));
+    xprintf("Wrote bytes: %d\n", MIK32FAT_WriteFile(&write_file, str, strlen(str)-1));
+    xprintf("Close status: %d\n", MIK32FAT_FileClose(&write_file));
 #endif
 }
 
