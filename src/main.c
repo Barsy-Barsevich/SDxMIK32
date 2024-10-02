@@ -5,26 +5,20 @@
 #include "xprintf.h"
 
 /*
- * Данный пример демонстрирует работу с SPI в режиме ведущего.
- * Ведущий передает и принимает от ведомого на выводе CS0 20 байт.
- *
- * Результат передачи выводится по UART0.
- * Данный пример можно использовать совместно с ведомым из примера HAL_SPI_Slave.
+ * Данный пример демонстрирует работу драйвера карт SD и
+ * файловой системы, совместимой с файловой системой FAT32
  */
 
+#define READ_EXAMPLE
+#define WRITE_EXAMPLE
+
+
 USART_HandleTypeDef husart0;
-
 FAT_Descriptor_t fs;
-
 
 
 void SystemClock_Config(void);
 static void USART_Init();
-
-void PrintFATs();
-void PrintRoot();
-void ReadSector(uint32_t num);
-
 
 int main()
 {
@@ -32,8 +26,9 @@ int main()
 
     USART_Init();
 
-    xprintf("Start\n");
+    xprintf("\n\n*** Start ***\n");
 
+    /* Инициализация */
     FAT_Status_t res;
     res = FAT_Init(&fs);
     xprintf("FS initialization: %s", res==FAT_OK ? "ok\n" : "failed, ");
@@ -56,16 +51,50 @@ int main()
     // xprintf("Num of FATs: %u\n", fs.param.num_of_fats);
     // xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
 
-
-    FAT_File_t file;
-
-    xprintf("Open_Status: %u\n", FAT_FileOpen(&file, &fs, "TESTS/WRITE1.TXT", 'W'));
-    xprintf("Write_Status: %u\n", FAT_WriteFile(&file, "Raz, dva, tri - podstava ne pridi", 33));
-    xprintf("Close_Status: %u\n", FAT_FileClose(&file));
-
-    //PrintRoot();
-
-    while(1);
+#ifdef READ_EXAMPLE
+    xprintf("\nReading file example\n");
+    FAT_File_t read_file;
+    res = FAT_FileOpen(&read_file, &fs, "TESTS/READ.TXT", 'R');
+    xprintf("TESTS/READ.TXT file open status: %d\n", res);
+    if (res != FAT_OK)
+    {
+        while (1)
+        {
+            xprintf("Error occured with file TESTS/READ.TXT, status %u\n", res);
+            HAL_DelayMs(5000);
+        }
+    }
+    static char read_buffer[1000];
+    if (read_file.len > 1000-1)
+    {
+        xprintf("File length is more than the buffer length\n");
+    }
+    else
+    {
+        uint16_t bytes_read = FAT_ReadFile(&read_file, read_buffer, read_file.len);
+        /* Вставить символ возврата каретки для корректной печати */
+        read_buffer[bytes_read] = '\0';
+        xprintf("Text:\n%s\n", read_buffer);
+    }
+    xprintf("Close status: %d\n", FAT_FileClose(&read_file));
+#endif
+#ifdef WRITE_EXAMPLE
+    xprintf("\nWriting file example\n");
+    FAT_File_t write_file;
+    res = FAT_FileOpen(&write_file, &fs, "TESTS/WRITE1.TXT", 'W');
+    xprintf("TESTS/WRITE1.TXT file open status: %d\n", res);
+    if (res != FAT_OK)
+    {
+        while (1)
+        {
+            xprintf("Error occured with file TESTS/WRITE1.TXT, status %u\n", res);
+            HAL_DelayMs(5000);
+        }
+    }
+    char str[] = "Writing string to file\n";
+    xprintf("Wrote bytes: %d\n", FAT_WriteFile(&write_file, str, strlen(str)-1));
+    xprintf("Close status: %d\n", FAT_FileClose(&write_file));
+#endif
 }
 
 
@@ -127,6 +156,6 @@ static void USART_Init()
     husart0.Modem.dsr = Disable; //in
     husart0.Modem.ri = Disable;  //in
     husart0.Modem.ddis = Disable;//out
-    husart0.baudrate = 1000000;
+    husart0.baudrate = 115200;
     HAL_USART_Init(&husart0);
 }
