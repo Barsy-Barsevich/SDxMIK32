@@ -454,6 +454,7 @@ FAT_Status_t MIK32FAT_FileClose(FAT_File_t* file)
  */
 uint32_t MIK32FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan)
 {
+    if (file->modificator != 'R') return 0;
     uint32_t counter = 0;
     uint32_t start_addr = (file->addr - file->addr % (512 * file->fs->param.sec_per_clust));
 
@@ -473,7 +474,7 @@ uint32_t MIK32FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan)
         uint32_t sector = file->fs->data_region_begin + file->cluster * file->fs->param.sec_per_clust +
             ((file->addr - start_addr) / 512);
         if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != 0) return counter;
-        xprintf("*%u*\n", sector);
+        //xprintf("*%u*\n", sector);
         /* Reading sector */
         uint16_t x = file->addr % 512;
         while ((x < 512) && (quan > 0) && (file->len > 0))
@@ -500,6 +501,7 @@ uint32_t MIK32FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan)
  */
 uint32_t MIK32FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan)
 {
+    if ((file->modificator != 'W') && (file->modificator != 'A')) return 0;
     /* Index of buffer */
     uint32_t buf_idx = file->addr % 512;
     /* Number of written bytes */

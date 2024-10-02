@@ -13,6 +13,7 @@
 #define WRITE_EXAMPLE
 
 
+#define READ_BUFFER_LENGTH  200
 USART_HandleTypeDef husart0;
 FAT_Descriptor_t fs;
 
@@ -32,6 +33,8 @@ int main()
     FAT_Status_t res;
     res = MIK32FAT_Init(&fs);
     xprintf("FS initialization: %s", res==FAT_OK ? "ok\n" : "failed, ");
+
+    
     if (res != FAT_OK)
     {
         switch (res)
@@ -51,6 +54,7 @@ int main()
     // xprintf("Num of FATs: %u\n", fs.param.num_of_fats);
     // xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
 
+    MIK32FAT_Create(&fs, "anomaln/hagku/folder.txt", false);
 #ifdef READ_EXAMPLE
     xprintf("\nReading file example\n");
     FAT_File_t read_file;
@@ -64,19 +68,27 @@ int main()
             HAL_DelayMs(5000);
         }
     }
-    static char read_buffer[1000];
-    if (read_file.len > 1000-1)
+    static char read_buffer[READ_BUFFER_LENGTH];
+    uint8_t i = read_file.len / (READ_BUFFER_LENGTH-1);
+    if (read_file.len % (READ_BUFFER_LENGTH-1) != 0) i += 1;
+    uint32_t bytes_read;
+    xprintf("Text:\n");
+    while (i > 0)
     {
-        xprintf("File length is more than the buffer length\n");
+        bytes_read = MIK32FAT_ReadFile(&read_file, read_buffer, READ_BUFFER_LENGTH-1);
+        if (bytes_read == 0)
+        {
+            xprintf("Error occured while file reading, stop.\n");
+            break;
+        }
+        else 
+        {
+            /* Вставить символ возврата каретки для корректной печати */
+            read_buffer[bytes_read] = '\0';
+            xprintf("%s", read_buffer);
+        }
+        i -= 1;
     }
-    else
-    {
-        uint16_t bytes_read = MIK32FAT_ReadFile(&read_file, read_buffer, read_file.len);
-        /* Вставить символ возврата каретки для корректной печати */
-        read_buffer[bytes_read] = '\0';
-        xprintf("Text:\n%s\n", read_buffer);
-    }
-    xprintf("Close status: %d\n", MIK32FAT_FileClose(&read_file));
 #endif
 #ifdef WRITE_EXAMPLE
     xprintf("\nWriting file example\n");
