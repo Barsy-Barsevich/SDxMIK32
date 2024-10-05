@@ -54,7 +54,6 @@ int main()
     // xprintf("Num of FATs: %u\n", fs.param.num_of_fats);
     // xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
 
-    MIK32FAT_Create(&fs, "anomaln/hagku/folder.txt", false);
 #ifdef READ_EXAMPLE
     xprintf("\nReading file example\n");
     FAT_File_t read_file;
