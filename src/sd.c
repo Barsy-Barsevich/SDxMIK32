@@ -1,5 +1,11 @@
 #include "sd.h"
 
+DMA_InitTypeDef hdma_sd;
+DMA_ChannelHandleTypeDef hdma_sdspi_tx_ch;
+DMA_ChannelHandleTypeDef hdma_sdspi_rx_ch;
+
+static SD_Status_t SD_InterfaceInit(SD_Descriptor_t* local, SPI_HandleTypeDef* hspi, SPI_TypeDef* instance, uint8_t cs);
+
 
 SD_Status_t SD_SendCommand(SD_Descriptor_t* local, SD_Commands_enum command, uint32_t operand, uint8_t crc, uint8_t* resp)
 {
@@ -57,8 +63,15 @@ SD_Status_t SD_SendCommand(SD_Descriptor_t* local, SD_Commands_enum command, uin
 
 
 
-SD_Status_t SD_Init(SD_Descriptor_t* local)
+SD_Status_t SD_Init(SD_Descriptor_t* local, SPI_HandleTypeDef* hspi, SPI_TypeDef* instance, uint8_t cs)
 {
+    SD_Status_t res;
+    res = SD_InterfaceInit(local, hspi, instance, cs);
+    if (res != SD_OK) return res;
+
+    /* By default */
+    local->voltage = SD_Voltage_from_3_2_to_3_3;
+
     HAL_SPI_CS_Disable(local->spi);
     HAL_DelayMs(100);
     //80 тактов на линии SCK
@@ -71,7 +84,6 @@ SD_Status_t SD_Init(SD_Descriptor_t* local)
 
     HAL_SPI_CS_Enable(local->spi, SPI_CS_0);
 
-    SD_Status_t res;
     res = SD_SendCommand(local, CMD0, 0, 0x95, resp);
     if (res != SD_OK) return res;
 
@@ -199,12 +211,18 @@ SD_Status_t SD_Init(SD_Descriptor_t* local)
         return SD_OK;
     }
 
-    res = SD_clock_increase();
-    if (res != SD_OK) return res;
+    /* Increase clocking speed */
+    local->spi->Init.BaudRateDiv = SPI_BAUDRATE_DIV4;
+    if (HAL_SPI_Init(local->spi) != HAL_OK)
+    {
+        //xprintf("SPI_Init_Error\n");
+        return SD_CommunicationError;
+    }
     return SD_OK;
 }
 
 
+#ifndef SD_DRIVER_USE_DMA
 SD_Status_t SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
 {
     uint8_t resp, dummy = 0xFF;
@@ -232,8 +250,54 @@ SD_Status_t SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
     HAL_SPI_CS_Disable(local->spi);
     return SD_OK;
 }
+#else
+SD_Status_t SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
+{
+    uint8_t resp, dummy = 0xFF;
+    SD_Status_t res;
+    HAL_SPI_CS_Enable(local->spi, SPI_CS_0);
+    res = SD_SendCommand(local, CMD17, addr, 0xff, &resp);
+    if (res != SD_OK) return res;
+    // for (uint16_t i=0; i<512; i++)
+    //     HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    if (resp != 0) return resp;
+    uint16_t counter = 0;
+    while ((resp != 0xFE) && (resp != 0xFC))
+    {
+        HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+        if (counter >= SD_SREAD_WAIT_ATTEMPTS) return SD_TimeoutError;
+        counter += 1;
+        if (resp == 0xFF) continue;
+    }
+    
+    /* Data receiving & transmitting via DMA */
+    HAL_SPI_Enable(local->spi);
+    dummy = 0xFF;
+    hdma_sdspi_tx_ch.ChannelInit.ReadInc = DMA_CHANNEL_INC_DISABLE;
+    hdma_sdspi_rx_ch.ChannelInit.WriteInc = DMA_CHANNEL_INC_ENABLE;
+    HAL_DMA_Start(&hdma_sdspi_tx_ch, &dummy, (void *)&local->spi->Instance->TXDATA, 511);
+    HAL_DMA_Start(&hdma_sdspi_rx_ch, (void *)&local->spi->Instance->RXDATA, buf, 511);
+    if (HAL_DMA_Wait(&hdma_sdspi_tx_ch, DMA_TIMEOUT_DEFAULT) != HAL_OK)
+    {
+        //xprintf("Timeout CH0\n");
+        return SD_CommunicationError;
+    }
+    if (HAL_DMA_Wait(&hdma_sdspi_rx_ch, DMA_TIMEOUT_DEFAULT) != HAL_OK)
+    {
+        //xprintf("Timeout CH1\n");
+        return SD_CommunicationError;
+    }
+    HAL_SPI_Disable(local->spi);
+
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    HAL_SPI_CS_Disable(local->spi);
+    return SD_OK;
+}
+#endif
 
 
+#ifndef SD_DRIVER_USE_DMA
 SD_Status_t SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
 {
     uint8_t resp, dummy = 0xFF;
@@ -258,6 +322,47 @@ SD_Status_t SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
     HAL_SPI_CS_Disable(local->spi);
     return SD_OK;
 }
+#else
+SD_Status_t SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf)
+{
+    uint8_t resp, dummy = 0xFF;
+    SD_Status_t res;
+    HAL_SPI_CS_Enable(local->spi, SPI_CS_0);
+    res = SD_SendCommand(local, CMD24, addr, 0xff, &resp);
+    if (res != SD_OK) return res;
+    if (resp != 0) return resp;
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    dummy = 0xFE;
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    
+    /* Data receiving & transmitting via DMA */
+    HAL_SPI_Enable(local->spi);
+    hdma_sdspi_tx_ch.ChannelInit.ReadInc = DMA_CHANNEL_INC_ENABLE;
+    hdma_sdspi_rx_ch.ChannelInit.WriteInc = DMA_CHANNEL_INC_DISABLE;
+    HAL_DMA_Start(&hdma_sdspi_tx_ch, buf, (void *)&local->spi->Instance->TXDATA, 511);
+    HAL_DMA_Start(&hdma_sdspi_rx_ch, (void *)&local->spi->Instance->RXDATA, &dummy, 511);
+    if (HAL_DMA_Wait(&hdma_sdspi_tx_ch, DMA_TIMEOUT_DEFAULT) != HAL_OK)
+    {
+        //xprintf("Timeout CH0\n");
+        return SD_CommunicationError;
+    }
+    if (HAL_DMA_Wait(&hdma_sdspi_rx_ch, DMA_TIMEOUT_DEFAULT) != HAL_OK)
+    {
+        //xprintf("Timeout CH1\n");
+        return SD_CommunicationError;
+    }
+    HAL_SPI_Disable(local->spi);
+
+    dummy = 0xFF;
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    HAL_SPI_Exchange(local->spi, &dummy, &resp, 1, SPI_TIMEOUT_DEFAULT);
+    //HAL_DelayMs(100);
+    HAL_SPI_CS_Disable(local->spi);
+    return SD_OK;
+}
+#endif
 
 
 SD_Status_t SD_SingleErase(SD_Descriptor_t* local, uint32_t addr)
@@ -274,5 +379,72 @@ SD_Status_t SD_SingleErase(SD_Descriptor_t* local, uint32_t addr)
     res = SD_SendCommand(local, CMD38, 0, 0xFF, &resp);
     if (res != SD_OK) return res;
     HAL_SPI_CS_Disable(local->spi);
+    return SD_OK;
+}
+
+
+
+
+ SD_Status_t SD_InterfaceInit(SD_Descriptor_t* local, SPI_HandleTypeDef* hspi, SPI_TypeDef* instance, uint8_t cs)
+{
+    local->spi = hspi;
+
+    /* SPI init */
+    local->spi->Instance = instance;
+    local->spi->Init.SPI_Mode = HAL_SPI_MODE_MASTER;
+    local->spi->Init.CLKPhase = SPI_PHASE_ON;
+    local->spi->Init.CLKPolarity = SPI_POLARITY_HIGH;
+    local->spi->Init.ThresholdTX = 4;
+    local->spi->Init.BaudRateDiv = SPI_BAUDRATE_DIV256;
+    local->spi->Init.Decoder = SPI_DECODER_NONE;
+    local->spi->Init.ManualCS = SPI_MANUALCS_ON;
+    local->spi->Init.ChipSelect = cs;
+    if (HAL_SPI_Init(local->spi) != HAL_OK)
+    {
+        //xprintf("SPI_Init_Error\n");
+        return SD_CommunicationError;
+    }
+
+    /* DMA init */
+#ifdef SD_DRIVER_USE_DMA
+    hdma_sd.Instance = DMA_CONFIG;
+    hdma_sd.CurrentValue = DMA_CURRENT_VALUE_ENABLE;
+    if (HAL_DMA_Init(&hdma_sd) != HAL_OK)
+    {
+        //xprintf("DMA_Init Error\n");
+        return SD_CommunicationError;
+    }
+    /* Channel init */
+    hdma_sdspi_tx_ch.dma = &hdma_sd;
+    hdma_sdspi_tx_ch.ChannelInit.Channel = DMA_CHANNEL_0;
+    hdma_sdspi_tx_ch.ChannelInit.Priority = DMA_CHANNEL_PRIORITY_VERY_HIGH;
+    hdma_sdspi_tx_ch.ChannelInit.ReadMode = DMA_CHANNEL_MODE_MEMORY;
+    hdma_sdspi_tx_ch.ChannelInit.ReadInc = DMA_CHANNEL_INC_ENABLE;
+    hdma_sdspi_tx_ch.ChannelInit.ReadSize = DMA_CHANNEL_SIZE_BYTE;
+    hdma_sdspi_tx_ch.ChannelInit.ReadBurstSize = 0;
+    hdma_sdspi_tx_ch.ChannelInit.ReadRequest = DMA_CHANNEL_SPI_0_REQUEST;
+    hdma_sdspi_tx_ch.ChannelInit.ReadAck = DMA_CHANNEL_ACK_DISABLE;
+    hdma_sdspi_tx_ch.ChannelInit.WriteMode = DMA_CHANNEL_MODE_PERIPHERY;
+    hdma_sdspi_tx_ch.ChannelInit.WriteInc = DMA_CHANNEL_INC_DISABLE;
+    hdma_sdspi_tx_ch.ChannelInit.WriteSize = DMA_CHANNEL_SIZE_BYTE;
+    hdma_sdspi_tx_ch.ChannelInit.WriteBurstSize = 0;
+    hdma_sdspi_tx_ch.ChannelInit.WriteRequest = DMA_CHANNEL_SPI_0_REQUEST;
+    hdma_sdspi_tx_ch.ChannelInit.WriteAck = DMA_CHANNEL_ACK_DISABLE;
+    hdma_sdspi_rx_ch.dma = &hdma_sd;
+    hdma_sdspi_rx_ch.ChannelInit.Channel = DMA_CHANNEL_1;
+    hdma_sdspi_rx_ch.ChannelInit.Priority = DMA_CHANNEL_PRIORITY_VERY_HIGH;
+    hdma_sdspi_rx_ch.ChannelInit.ReadMode = DMA_CHANNEL_MODE_PERIPHERY;
+    hdma_sdspi_rx_ch.ChannelInit.ReadInc = DMA_CHANNEL_INC_DISABLE;
+    hdma_sdspi_rx_ch.ChannelInit.ReadSize = DMA_CHANNEL_SIZE_BYTE;
+    hdma_sdspi_rx_ch.ChannelInit.ReadBurstSize = 0;
+    hdma_sdspi_rx_ch.ChannelInit.ReadRequest = DMA_CHANNEL_SPI_0_REQUEST;
+    hdma_sdspi_rx_ch.ChannelInit.ReadAck = DMA_CHANNEL_ACK_DISABLE;
+    hdma_sdspi_rx_ch.ChannelInit.WriteMode = DMA_CHANNEL_MODE_MEMORY;
+    hdma_sdspi_rx_ch.ChannelInit.WriteInc = DMA_CHANNEL_INC_ENABLE;
+    hdma_sdspi_rx_ch.ChannelInit.WriteSize = DMA_CHANNEL_SIZE_BYTE;
+    hdma_sdspi_rx_ch.ChannelInit.WriteBurstSize = 0;
+    hdma_sdspi_rx_ch.ChannelInit.WriteRequest = DMA_CHANNEL_SPI_0_REQUEST;
+    hdma_sdspi_rx_ch.ChannelInit.WriteAck = DMA_CHANNEL_ACK_DISABLE;
+#endif
     return SD_OK;
 }

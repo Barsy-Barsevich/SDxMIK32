@@ -1,12 +1,9 @@
 #include "mik32fat.h"
 
 
-FAT_Status_t MIK32FAT_Init(FAT_Descriptor_t* fs)
+FAT_Status_t MIK32FAT_Init(FAT_Descriptor_t* fs, SD_Descriptor_t* sd_card)
 {
-    /* SD card initializing */
-    SD_Descriptor_t* card;
-    if (SD_card_init(&card) != SD_OK) return FAT_DiskError;
-    fs->card = card;
+    fs->card = sd_card;
     /* Read Master boot record */
     if (SD_SingleRead(fs->card, 0, fs->buffer) != 0) return FAT_DiskError;
     /* Read LBAs */

@@ -1,8 +1,11 @@
-#ifndef SD_H
-#define SD_H
+#pragma once
 
 #include "mik32_hal_spi.h"
+#include "mik32_hal_dma.h"
 #include "xprintf.h"
+
+#define SD_DRIVER_USE_DMA
+
 
 
 /* R1 response */
@@ -131,19 +134,15 @@ typedef enum
 
 typedef struct sd
 {
-    void* spi;
+    SPI_HandleTypeDef* spi;
     SD_CardType_enum type;
     SD_Voltage_enum voltage;
 } SD_Descriptor_t;
 
 
+SD_Status_t SD_Init(SD_Descriptor_t* local, SPI_HandleTypeDef* hspi, SPI_TypeDef* instance, uint8_t cs);
+
 SD_Status_t SD_SendCommand(SD_Descriptor_t* local, SD_Commands_enum command, uint32_t operand, uint8_t crc, uint8_t* resp);
-SD_Status_t SD_Init(SD_Descriptor_t* param);
 SD_Status_t SD_SingleRead(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
 SD_Status_t SD_SingleWrite(SD_Descriptor_t* local, uint32_t addr, uint8_t* buf);
 SD_Status_t SD_SingleErase(SD_Descriptor_t* local, uint32_t addr);
-
-SD_Status_t SD_card_init(SD_Descriptor_t** card);
-SD_Status_t SD_clock_increase();
-
-#endif

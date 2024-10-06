@@ -13,12 +13,16 @@
 #define WRITE_EXAMPLE
 
 
-#define READ_BUFFER_LENGTH  200
+#define READ_BUFFER_LENGTH  20
 USART_HandleTypeDef husart0;
+
+SPI_HandleTypeDef hspi_sd;
+SD_Descriptor_t sd;
 FAT_Descriptor_t fs;
 
 
 void SystemClock_Config(void);
+static void SD_FS_Config();
 static void USART_Init();
 
 int main()
@@ -29,30 +33,9 @@ int main()
 
     xprintf("\n\n*** Start ***\n");
 
-    /* Инициализация */
-    FAT_Status_t res;
-    res = MIK32FAT_Init(&fs);
-    xprintf("FS initialization: %s", res==FAT_OK ? "ok\n" : "failed, ");
+    SD_FS_Config();
 
-    
-    if (res != FAT_OK)
-    {
-        switch (res)
-        {
-            case FAT_DiskError: xprintf("disk error"); break;
-            case FAT_DiskNForm: xprintf("disk not mount"); break;
-            default: xprintf("unknown error"); break;
-        }
-        xprintf("\n");
-        while(1);
-    }
-    // xprintf("FS startaddr: %u\n", fs.fs_begin);
-    // xprintf("First FAT1 startaddr: %u\n", fs.fat1_begin);
-    // xprintf("First FAT2 startaddr: %u\n", fs.fat2_begin);
-    // xprintf("First data cluster: %u\n", fs.data_region_begin);
-    // xprintf("FAT length: %u\n", fs.param.fat_length);
-    // xprintf("Num of FATs: %u\n", fs.param.num_of_fats);
-    // xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
+    FAT_Status_t res;
 
 #ifdef READ_EXAMPLE
     xprintf("\nReading file example\n");
@@ -125,6 +108,51 @@ void SystemClock_Config(void)
     PCC_OscInit.RTCClockSelection = PCC_RTC_CLOCK_SOURCE_AUTO;
     PCC_OscInit.RTCClockCPUSelection = PCC_CPU_RTC_CLOCK_SOURCE_OSC32K;
     HAL_PCC_Config(&PCC_OscInit);
+}
+
+
+static void SD_FS_Config()
+{
+    SD_Status_t res;
+    res = SD_Init(&sd, &hspi_sd, SPI_0, SPI_CS_0);
+    xprintf("SD card: %s\n", res==SD_OK ? "found" : "not found");
+    if (res != SD_OK)
+    {
+        while (1);
+    }
+    xprintf("Type: ");
+    switch (sd.type)
+    {
+        case SDv1: xprintf("SDv1"); break;
+        case SDv2: xprintf("SDv2"); break;
+        case SDHC: xprintf("SDHC"); break;
+        case MMC: xprintf("MMC"); break;
+        default: xprintf("Unknown");
+    }
+    xprintf("\n");
+
+    /* Инициализация */
+    FAT_Status_t fs_res;
+    fs_res = MIK32FAT_Init(&fs, &sd);
+    xprintf("FS initialization: %s", fs_res==FAT_OK ? "ok\n" : "failed, ");
+    if (fs_res != FAT_OK)
+    {
+        switch (fs_res)
+        {
+            case FAT_DiskError: xprintf("disk error"); break;
+            case FAT_DiskNForm: xprintf("disk not mount"); break;
+            default: xprintf("unknown error"); break;
+        }
+        xprintf("\n");
+        while(1);
+    }
+    // xprintf("FS startaddr: %u\n", fs.fs_begin);
+    // xprintf("First FAT1 startaddr: %u\n", fs.fat1_begin);
+    // xprintf("First FAT2 startaddr: %u\n", fs.fat2_begin);
+    // xprintf("First data cluster: %u\n", fs.data_region_begin);
+    // xprintf("FAT length: %u\n", fs.param.fat_length);
+    // xprintf("Num of FATs: %u\n", fs.param.num_of_fats);
+    // xprintf("Sectors per cluster: %u\n", fs.param.sec_per_clust);
 }
 
 

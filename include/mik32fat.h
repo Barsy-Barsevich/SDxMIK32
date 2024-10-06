@@ -213,7 +213,7 @@ typedef struct
 
 
 
-FAT_Status_t MIK32FAT_Init(FAT_Descriptor_t* fs);
+FAT_Status_t MIK32FAT_Init(FAT_Descriptor_t* fs, SD_Descriptor_t* sd_card);
 
 void MIK32FAT_SetPointerToRoot(FAT_Descriptor_t* local);
 FAT_Status_t MIK32FAT_FindNextCluster(FAT_Descriptor_t* fs);
