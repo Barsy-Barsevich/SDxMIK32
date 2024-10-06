@@ -113,9 +113,12 @@ typedef struct
      */
     uint32_t data_region_begin;
     /**
+     * @brief Previously read sector
+     */
+    uint32_t prev_sector;
+    /**
      * @brief File system parameters
      */
-
     struct __param {
         /**
          * @brief Number of sectors per cluster

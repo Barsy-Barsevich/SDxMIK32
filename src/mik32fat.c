@@ -3,6 +3,7 @@
 
 FAT_Status_t MIK32FAT_Init(FAT_Descriptor_t* fs, SD_Descriptor_t* sd_card)
 {
+    //TODO: сделать проверу томов на форматированность FAT32
     fs->card = sd_card;
     /* Read Master boot record */
     if (SD_SingleRead(fs->card, 0, fs->buffer) != 0) return FAT_DiskError;
@@ -26,6 +27,7 @@ FAT_Status_t MIK32FAT_Init(FAT_Descriptor_t* fs, SD_Descriptor_t* sd_card)
         (uint32_t)ptr[FAT_Partition_LBA_Begin];
     /* Read LBA sector */
     if (SD_SingleRead(fs->card, fs->fs_begin, fs->buffer) != 0) return FAT_DiskError;
+    fs->prev_sector = fs->fs_begin;
 
     fs->param.sec_per_clust = fs->buffer[FAT_BPB_SecPerClus];
     /* Read number of sectors of reserved file system's region */
@@ -72,6 +74,7 @@ FAT_Status_t MIK32FAT_FindNextCluster(FAT_Descriptor_t* fs)
     /* Read FAT */
     uint32_t bias = (fs->temp.cluster / (512/4));
     if (SD_SingleRead(fs->card, fs->fat1_begin + bias, fs->buffer) != 0) return FAT_DiskError;
+    fs->prev_sector = fs->fat1_begin + bias;
     /* Read field */
     uint32_t* ptr = (uint32_t*)fs->buffer;
     uint32_t link = ptr[fs->temp.cluster % (512/4)];
@@ -143,7 +146,12 @@ FAT_Status_t MIK32FAT_FindByName(FAT_Descriptor_t* fs, char* name)
         {
             /* Read sector data */
             sector = fs->data_region_begin + fs->temp.cluster * fs->param.sec_per_clust + sec;
-            if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+            /* Read sector only if has not already been buffered */
+            if (sector != fs->prev_sector)
+            {
+                if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+                fs->prev_sector = sector;
+            }
             //xprintf("\n*%u*\n", cluster);
             /* Try to find the name in sector */
             uint16_t entire = 0;
@@ -275,6 +283,7 @@ FAT_Status_t MIK32FAT_FindFreeCluster(FAT_Descriptor_t* fs, uint32_t* new_cluste
     do {
         x += 1;
         if (SD_SingleRead(fs->card, fs->fat1_begin + x, fs->buffer) != SD_OK) return FAT_DiskError;
+        fs->prev_sector = fs->fat1_begin + x;
         link = -4;
         do {
             link += 4;
@@ -311,7 +320,12 @@ FAT_Status_t MIK32FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, ui
     int32_t link;
     do {
         x += 1;
-        if (SD_SingleRead(fs->card, fs->fat1_begin + x, fs->buffer) != SD_OK) return FAT_DiskError;
+        /* Read sector only if has not already been buffered */
+        if (fs->fat1_begin + x != fs->prev_sector)
+        {
+            if (SD_SingleRead(fs->card, fs->fat1_begin + x, fs->buffer) != SD_OK) return FAT_DiskError;
+            fs->prev_sector = fs->fat1_begin + x;
+        }
         link = -4;
         do {
             link += 4;
@@ -327,7 +341,11 @@ FAT_Status_t MIK32FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, ui
     uint32_t new_clus = (x * 128 + (link>>2));
     *new_cluster = new_clus - 2;
     /* Find sector of FAT containing previous cluster link */
-    if (SD_SingleRead(fs->card, fs->fat1_begin + (cluster / (512/4)), fs->buffer) != SD_OK) return FAT_DiskError;
+    if (fs->fat1_begin + (cluster / (512/4)) != fs->prev_sector)
+    {
+        if (SD_SingleRead(fs->card, fs->fat1_begin + (cluster / (512/4)), fs->buffer) != SD_OK) return FAT_DiskError;
+        fs->prev_sector = fs->fat1_begin + (cluster / (512/4));
+    }
     ptr = (uint32_t*)(fs->buffer + (cluster * fs->param.sec_per_clust) % 512);
     *ptr = new_clus;
     xprintf("Write link %04X on field %04X\n", new_clus, cluster);
@@ -336,7 +354,11 @@ FAT_Status_t MIK32FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, ui
     if (SD_SingleErase(fs->card, fs->fat2_begin + (cluster / (512/4))) != SD_OK) return FAT_DiskError;
     if (SD_SingleWrite(fs->card, fs->fat2_begin + (cluster / (512/4)), fs->buffer) != 0) return FAT_DiskError;
     /* Find sector of FAT containing previous cluster link */
-    if (SD_SingleRead(fs->card, fs->fat1_begin + (new_clus / (512/4)), fs->buffer) != SD_OK) return FAT_DiskError;
+    if (fs->fat1_begin + (new_clus / (512/4)) != fs->prev_sector)
+    {
+        if (SD_SingleRead(fs->card, fs->fat1_begin + (new_clus / (512/4)), fs->buffer) != SD_OK) return FAT_DiskError;
+        fs->prev_sector = fs->fat1_begin + (new_clus / (512/4));
+    }
     ptr = (uint32_t*)(fs->buffer + link);
     *ptr = 0x0FFFFFFF;
     xprintf("Write link 0x0FFFFFFF on field %04X\n", new_clus);
@@ -431,6 +453,7 @@ FAT_Status_t MIK32FAT_FileClose(FAT_File_t* file)
         /* Write new file length */
         sector = file->fs->data_region_begin + file->dir_sector;
         if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return FAT_DiskError;
+        file->fs->prev_sector = sector;
         uint32_t* ptr = (uint32_t*)&file->fs->buffer[file->entire_in_dir_clust + FAT_DIR_FileSize];
         *ptr = file->len;
         if (SD_SingleErase(file->fs->card, sector) != SD_OK) return FAT_DiskError;
@@ -470,7 +493,12 @@ uint32_t MIK32FAT_ReadFile(FAT_File_t* file, char* buf, uint32_t quan)
         /* Read sector data */
         uint32_t sector = file->fs->data_region_begin + file->cluster * file->fs->param.sec_per_clust +
             ((file->addr - start_addr) / 512);
-        if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != 0) return counter;
+        /* Read sector only if has not already buffered */
+        if (file->fs->prev_sector != sector)
+        {
+            if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != 0) return counter;
+            file->fs->prev_sector = sector;
+        }
         //xprintf("*%u*\n", sector);
         /* Reading sector */
         uint16_t x = file->addr % 512;
@@ -512,6 +540,7 @@ uint32_t MIK32FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan)
         {
             uint32_t sector = file->fs->data_region_begin + file->cluster * file->fs->param.sec_per_clust + (file->addr % file->fs->param.clust_len) / 512;
             if (SD_SingleRead(file->fs->card, sector, file->fs->buffer) != SD_OK) return counter;
+            file->fs->prev_sector = sector;
         }
         /* if data is written into a new cluster, find and mark new cluster */
         if ((file->addr % file->fs->param.clust_len == 0) && (file->addr != 0))
@@ -570,6 +599,7 @@ FAT_Status_t MIK32FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir)
     do {
         x += 1;
         if (SD_SingleRead(fs->card, fs->fat1_begin + x, fs->buffer) != SD_OK) return FAT_DiskError;
+        fs->prev_sector = fs->fat1_begin + x;
         link = -4;
         do {
             link += 4;
@@ -616,6 +646,7 @@ FAT_Status_t MIK32FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir)
         for (uint8_t idx=0; idx < fs->param.sec_per_clust; idx++)
         {
             if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+            fs->prev_sector = sector;
             sector += 1;
             entire = 0;
             while (entire < 512)
@@ -647,6 +678,7 @@ FAT_Status_t MIK32FAT_Create(FAT_Descriptor_t* fs, char* name, bool dir)
     memset(fs->buffer+entire+11, 0x00, 32-11);
 
     if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+    fs->prev_sector = sector;
     FAT_Entire_t* new_obj = (FAT_Entire_t*)(fs->buffer + entire);
     new_obj->FileSize = 0;
     new_obj->Attr = (dir ? FAT_ATTR_DIRECTORY : 0);
@@ -682,7 +714,12 @@ FAT_Status_t MIK32FAT_DeleteTemp(FAT_Descriptor_t* fs)
     uint32_t sector;
     /* Set the 0th byte of entire as 0xE5 */
     sector = fs->data_region_begin + fs->temp.dir_sector;
-    if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+    /* Read sector only if has not already been buffered */
+    if (sector != fs->prev_sector)
+    {
+        if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+        fs->prev_sector = sector;
+    }
     if ((fs->buffer[fs->temp.entire_in_dir_clust] & ~0xE5) != 0)
     {
         if (SD_SingleErase(fs->card, sector) != SD_OK) return FAT_DiskError;
@@ -705,6 +742,7 @@ FAT_Status_t MIK32FAT_DeleteTemp(FAT_Descriptor_t* fs)
                 if (SD_SingleWrite(fs->card, dummy, fs->buffer) != SD_OK) return FAT_DiskError;
             }
             if (SD_SingleRead(fs->card, sector, fs->buffer) != SD_OK) return FAT_DiskError;
+            fs->prev_sector = sector;
         }
         ptr = (uint32_t*)(fs->buffer + (cluster * fs->param.sec_per_clust) % 512);
         cluster = *ptr;
