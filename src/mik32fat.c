@@ -15,6 +15,7 @@ FAT_Status_t MIK32FAT_Init(FAT_Descriptor_t* fs, SD_Descriptor_t* sd_card)
     while (counter < 4)
     {
         type_code = ptr[FAT_Partition_TypeCode];
+        /* 0x0B - FAT32 fs, 0x0C - FAT32 with LFN */
         if ((type_code == 0x0B) || (type_code == 0x0C)) break;
         counter += 1;
         ptr += FAT_MBR_Partition_Length;
@@ -288,7 +289,7 @@ FAT_Status_t MIK32FAT_FindFreeCluster(FAT_Descriptor_t* fs, uint32_t* new_cluste
         do {
             link += 4;
             ptr = (uint32_t*)(fs->buffer + link);
-            xprintf("*%08X*\n", *ptr);
+            //xprintf("*%08X*\n", *ptr);
         } while ((*ptr != 0) && (link < 512));
     }
     while ((*ptr != 0) && (x < fs->param.fat_length));
@@ -330,7 +331,7 @@ FAT_Status_t MIK32FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, ui
         do {
             link += 4;
             ptr = (uint32_t*)(fs->buffer + link);
-            xprintf("*%08X*\n", *ptr);
+            //xprintf("*%08X*\n", *ptr);
         } while ((*ptr != 0) && (link < 512));
     }
     while ((*ptr != 0) && (x < fs->param.fat_length));
@@ -348,7 +349,7 @@ FAT_Status_t MIK32FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, ui
     }
     ptr = (uint32_t*)(fs->buffer + (cluster * fs->param.sec_per_clust) % 512);
     *ptr = new_clus;
-    xprintf("Write link %04X on field %04X\n", new_clus, cluster);
+    //xprintf("Write link %04X on field %04X\n", new_clus, cluster);
     if (SD_SingleErase(fs->card, fs->fat1_begin + (cluster / (512/4))) != SD_OK) return FAT_DiskError;
     if (SD_SingleWrite(fs->card, fs->fat1_begin + (cluster / (512/4)), fs->buffer) != 0) return FAT_DiskError;
     if (SD_SingleErase(fs->card, fs->fat2_begin + (cluster / (512/4))) != SD_OK) return FAT_DiskError;
@@ -361,7 +362,7 @@ FAT_Status_t MIK32FAT_TakeFreeCluster(FAT_Descriptor_t* fs, uint32_t cluster, ui
     }
     ptr = (uint32_t*)(fs->buffer + link);
     *ptr = 0x0FFFFFFF;
-    xprintf("Write link 0x0FFFFFFF on field %04X\n", new_clus);
+    //xprintf("Write link 0x0FFFFFFF on field %04X\n", new_clus);
     if (SD_SingleErase(fs->card, fs->fat1_begin + (new_clus / (512/4))) != SD_OK) return FAT_DiskError;
     if (SD_SingleWrite(fs->card, fs->fat1_begin + (new_clus / (512/4)), fs->buffer) != 0) return FAT_DiskError;
     if (SD_SingleErase(fs->card, fs->fat2_begin + (new_clus / (512/4))) != SD_OK) return FAT_DiskError;
@@ -548,7 +549,7 @@ uint32_t MIK32FAT_WriteFile(FAT_File_t* file, const char* buf, uint32_t quan)
             //Make new cluster
             uint32_t value_buf;
             FAT_Status_t res = MIK32FAT_TakeFreeCluster(file->fs, file->cluster, &value_buf);
-            xprintf("Clus %u -> clus %u\n", file->cluster, value_buf);
+            //xprintf("Clus %u -> clus %u\n", file->cluster, value_buf);
             if (res != FAT_OK) return counter;
             file->cluster = value_buf;
         }
